@@ -3,18 +3,15 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Tetranyble\Storage\Support\StorageConfig;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        $workspaceTable = StorageConfig::workspacesTable();
-
-        Schema::create('media_shares', function (Blueprint $table) use ($workspaceTable) {
+        Schema::create('media_shares', function (Blueprint $table) {
             $table->id();
             $table->uuid()->unique();
-            $table->foreignId('workspace_id')->nullable()->constrained($workspaceTable)->cascadeOnDelete();
+            $table->foreignId('workspace_id')->nullable()->index();
             $table->morphs('shareable');
             $table->string('token')->unique();
             $table->string('access_level')->default('view');

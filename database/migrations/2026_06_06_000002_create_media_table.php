@@ -3,15 +3,12 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Tetranyble\Storage\Support\StorageConfig;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        $workspaceTable = StorageConfig::workspacesTable();
-
-        Schema::create('media', function (Blueprint $table) use ($workspaceTable) {
+        Schema::create('media', function (Blueprint $table) {
             $table->id();
             $table->uuid()->unique();
             $table->nullableMorphs('mediable');
@@ -48,7 +45,7 @@ return new class extends Migration
             $table->timestamp('uploaded_at')->nullable();
             $table->string('virus_scan_status', 32)->default('pending');
             $table->json('custom_properties')->nullable();
-            $table->foreignId('workspace_id')->nullable()->constrained($workspaceTable)->nullOnDelete();
+            $table->foreignId('workspace_id')->nullable();
             $table->string('access_scope', 32)->default('workspace');
             $table->timestamps();
             $table->softDeletes();

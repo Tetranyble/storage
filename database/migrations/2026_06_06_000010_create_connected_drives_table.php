@@ -3,18 +3,15 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Tetranyble\Storage\Support\StorageConfig;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        $workspaceTable = StorageConfig::workspacesTable();
-
-        Schema::create('connected_drives', function (Blueprint $table) use ($workspaceTable): void {
+        Schema::create('connected_drives', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('workspace_id')->nullable()->constrained($workspaceTable)->cascadeOnDelete();
+            $table->foreignId('workspace_id')->nullable();
             $table->string('provider');                   // CloudProvider enum value
             $table->string('name');                       // user-given label
             $table->text('access_token')->nullable();     // encrypted

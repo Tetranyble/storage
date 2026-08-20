@@ -75,6 +75,8 @@ Package-backed activity logging is off by default. Only publish its migration wh
 php artisan vendor:publish --tag=tetranyble-storage-activity-migrations
 ```
 
+The package migrations no longer require a host `workspaces` table to exist first. `workspace_id` columns are still present, but their foreign-key constraint is intentionally left to the host application so single-workspace or non-workspace installs do not fail during `migrate`.
+
 Publish the config file:
 
 ```bash
@@ -85,12 +87,12 @@ php artisan vendor:publish --tag=tetranyble-storage-config
 
 ## Configuration
 
-`config/tetranyble-storage.php`:
+`config/storage.php`:
 
 ```php
 return [
     // Used whenever attach/upload/import does not provide a Disk explicitly.
-    'default_disk' => env('TETRANYBLE_STORAGE_DISK', 'local'),
+    'default_disk' => env('STORAGE_DISK'),
 
     'transfer' => [
         // Replace this contract implementation to apply host roles or permissions.
@@ -109,14 +111,14 @@ return [
 
     'database' => [
         'tables' => [
-            'users' => env('TETRANYBLE_STORAGE_USERS_TABLE'),
-            'workspaces' => env('TETRANYBLE_STORAGE_WORKSPACES_TABLE'),
+            'users' => env('STORAGE_USERS_TABLE'),
+            'workspaces' => env('STORAGE_WORKSPACES_TABLE'),
         ],
     ],
 
     'activities' => [
-        'enabled' => env('TETRANYBLE_STORAGE_ACTIVITIES_ENABLED', false),
-        'load_migrations' => env('TETRANYBLE_STORAGE_ACTIVITY_MIGRATIONS', false),
+        'enabled' => env('STORAGE_ACTIVITIES_ENABLED', false),
+        'load_migrations' => env('STORAGE_ACTIVITY_MIGRATIONS', false),
     ],
 
     'workspace' => [
@@ -186,8 +188,8 @@ The default resolver looks for actor and workspace context in this order:
 
 - a user model implementing `Tetranyble\Storage\Contracts\StorageUser`
 - a model implementing `Tetranyble\Storage\Contracts\WorkspaceSubject`
-- the configured relation from `tetranyble-storage.workspace.workspace_relation`
-- the configured actor foreign key from `tetranyble-storage.workspace.workspace_foreign_key`
+- the configured relation from `storage.workspace.workspace_relation`
+- the configured actor foreign key from `storage.workspace.workspace_foreign_key`
 
 If you want a no-config path, implement `StorageUser` on your actor model. The package trait `BelongsToStorageWorkspace` provides the required methods for the common belongs-to case.
 
@@ -196,9 +198,9 @@ The config fallback expects the authenticated actor to expose either:
 - a `workspace()` relation, or
 - a `workspace_id` attribute
 
-Those fallback names are configurable in `tetranyble-storage.workspace.workspace_relation` and `tetranyble-storage.workspace.workspace_foreign_key`.
+Those fallback names are configurable in `storage.workspace.workspace_relation` and `storage.workspace.workspace_foreign_key`.
 
-If your host application uses different user or workspace tables, set `tetranyble-storage.database.tables.users` and `tetranyble-storage.database.tables.workspaces` before running the package migrations.
+If your host application uses a different users table, set `storage.database.tables.users` before running the package migrations. If you also maintain a host `workspaces` table, point `storage.database.tables.workspaces` at it for model resolution; the package migrations no longer hard-require that table to exist.
 
 `workspace_id` is optional only when you use the low-level media APIs without the package's route layer or workspace-scoped features. In practice, that means standalone uploads, model attachments, and resumable uploads can be created without a workspace if your host application wants global media instead of isolated workspace media.
 
@@ -835,14 +837,14 @@ return $result['response'];
 
 ## HTTP Routes
 
-The package registers the following routes automatically. The prefix and middleware are configurable via `tetranyble-storage.routes`.
+The package registers the following routes automatically. The prefix and middleware are configurable via `storage.routes`.
 
 All authenticated package routes require the workspace resolver to return a current workspace. Route lookups are then constrained by `workspace_id`, so users must already be operating inside a resolved workspace context before calling these endpoints.
 
 Disable every package route without disabling its services by setting:
 
 ```dotenv
-TETRANYBLE_STORAGE_ROUTES_ENABLED=false
+STORAGE_ROUTES_ENABLED=false
 ```
 
 Alternatively, set the published configuration directly:
@@ -858,8 +860,8 @@ This disables authenticated routes and public share routes. The route file also 
 The same pattern exists for activity logging. Package-backed activity logging stays off unless you explicitly enable it:
 
 ```dotenv
-TETRANYBLE_STORAGE_ACTIVITIES_ENABLED=true
-TETRANYBLE_STORAGE_ACTIVITY_MIGRATIONS=true
+STORAGE_ACTIVITIES_ENABLED=true
+STORAGE_ACTIVITY_MIGRATIONS=true
 ```
 
 Enable those only if you want the package to store and read activity from its own `activities` table. When left disabled, upload/share/version flows still work, but package-backed recent activity feeds and revision audit trails return empty results unless you bind your own activity contracts.
@@ -981,7 +983,7 @@ class User extends Authenticatable implements StorageUser
 Point the package to your host models and tables:
 
 ```php
-// config/tetranyble-storage.php
+// config/storage.php
 'models' => [
     'workspace' => \App\Models\Organisation::class,
     'user' => \App\Models\User::class, // optional if Laravel auth already uses this model

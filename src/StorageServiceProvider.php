@@ -39,7 +39,9 @@ class StorageServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/tetranyble-storage.php', 'tetranyble-storage');
+        $this->mergeConfigFrom(__DIR__.'/../config/storage.php', 'storage');
+        $this->mergeConfigFrom(__DIR__.'/../config/storage.php', 'tetranyble-storage');
+        $this->synchronizeConfigKeys();
 
         $this->app->bind(FileSystemContract::class, FileSystem::class);
         $this->app->bind(MediaUploader::class, MediaService::class);
@@ -144,7 +146,7 @@ class StorageServiceProvider extends ServiceProvider
         }
 
         $this->publishes([
-            __DIR__.'/../config/tetranyble-storage.php' => config_path('tetranyble-storage.php'),
+            __DIR__.'/../config/storage.php' => config_path('storage.php'),
         ], 'tetranyble-storage-config');
 
         $this->publishes($this->migrationPublishPaths(__DIR__.'/../database/migrations'), 'tetranyble-storage-migrations');
@@ -154,7 +156,7 @@ class StorageServiceProvider extends ServiceProvider
         );
 
         $this->publishes([
-            __DIR__.'/../routes/storage.php' => base_path('routes/tetranyble-storage.php'),
+            __DIR__.'/../routes/storage.php' => base_path('routes/storage.php'),
         ], 'tetranyble-storage-routes');
 
         if ($this->app->runningInConsole()) {
@@ -170,6 +172,25 @@ class StorageServiceProvider extends ServiceProvider
             'tetranyble-storage.activities.load_migrations',
             config('tetranyble-storage.activities.enabled', false),
         );
+    }
+
+    private function synchronizeConfigKeys(): void
+    {
+        $primary = $this->app['config']->get('storage', []);
+        $legacy = $this->app['config']->get('tetranyble-storage', []);
+
+        if (! is_array($primary)) {
+            $primary = [];
+        }
+
+        if (! is_array($legacy)) {
+            $legacy = [];
+        }
+
+        $resolved = array_replace_recursive($legacy, $primary);
+
+        $this->app['config']->set('storage', $resolved);
+        $this->app['config']->set('tetranyble-storage', $resolved);
     }
 
     private function migrationPublishPaths(string $directory): array

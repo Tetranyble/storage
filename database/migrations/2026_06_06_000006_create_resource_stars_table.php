@@ -10,12 +10,11 @@ return new class extends Migration
     public function up(): void
     {
         $userTable = StorageConfig::usersTable();
-        $workspaceTable = StorageConfig::workspacesTable();
 
-        Schema::create('resource_stars', function (Blueprint $table) use ($userTable, $workspaceTable) {
+        Schema::create('resource_stars', function (Blueprint $table) use ($userTable) {
             $table->id();
             $table->uuid()->unique();
-            $table->foreignId('workspace_id')->nullable()->constrained($workspaceTable)->cascadeOnDelete();
+            $table->foreignId('workspace_id')->nullable();
             $table->foreignId('user_id')->constrained($userTable)->cascadeOnDelete();
             $table->morphs('starable');
             $table->timestamps();
