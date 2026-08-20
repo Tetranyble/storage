@@ -62,11 +62,17 @@ A modular, multi-workspace storage and media management package for Laravel. Wor
 composer require tetranyble/storage
 ```
 
-Publish and run migrations:
+Publish and run the core storage migrations:
 
 ```bash
 php artisan vendor:publish --tag=tetranyble-storage-migrations
 php artisan migrate
+```
+
+Package-backed activity logging is off by default. Only publish its migration when you want the package to own activity storage:
+
+```bash
+php artisan vendor:publish --tag=tetranyble-storage-activity-migrations
 ```
 
 Publish the config file:
@@ -106,6 +112,11 @@ return [
             'users' => env('TETRANYBLE_STORAGE_USERS_TABLE'),
             'workspaces' => env('TETRANYBLE_STORAGE_WORKSPACES_TABLE'),
         ],
+    ],
+
+    'activities' => [
+        'enabled' => env('TETRANYBLE_STORAGE_ACTIVITIES_ENABLED', false),
+        'load_migrations' => env('TETRANYBLE_STORAGE_ACTIVITY_MIGRATIONS', false),
     ],
 
     'workspace' => [
@@ -171,13 +182,14 @@ You must provide a resolvable workspace before using:
 - connected drives and cross-drive operations
 - storage-driver copy and move operations
 
-The default resolver looks for workspace context in this order:
+The default resolver looks for actor and workspace context in this order:
 
+- a user model implementing `Tetranyble\Storage\Contracts\StorageUser`
 - a model implementing `Tetranyble\Storage\Contracts\WorkspaceSubject`
 - the configured relation from `tetranyble-storage.workspace.workspace_relation`
 - the configured actor foreign key from `tetranyble-storage.workspace.workspace_foreign_key`
 
-If you want a no-config path, implement `WorkspaceSubject` on your actor or host model. The package trait `BelongsToStorageWorkspace` provides the required methods for the common belongs-to case.
+If you want a no-config path, implement `StorageUser` on your actor model. The package trait `BelongsToStorageWorkspace` provides the required methods for the common belongs-to case.
 
 The config fallback expects the authenticated actor to expose either:
 
@@ -367,6 +379,8 @@ $history = $versioning->activity($media);
 ```
 
 > **Note:** You cannot delete the current version — restore a different revision first, then delete the old one.
+>
+> If package activities are disabled and you do not bind your own `ActivityFeed`, revision history returns an empty collection by design.
 
 ---
 
@@ -841,6 +855,15 @@ Alternatively, set the published configuration directly:
 
 This disables authenticated routes and public share routes. The route file also checks this setting when it has been published and loaded by the consuming application.
 
+The same pattern exists for activity logging. Package-backed activity logging stays off unless you explicitly enable it:
+
+```dotenv
+TETRANYBLE_STORAGE_ACTIVITIES_ENABLED=true
+TETRANYBLE_STORAGE_ACTIVITY_MIGRATIONS=true
+```
+
+Enable those only if you want the package to store and read activity from its own `activities` table. When left disabled, upload/share/version flows still work, but package-backed recent activity feeds and revision audit trails return empty results unless you bind your own activity contracts.
+
 | Method | URL | Name | Description |
 |---|---|---|---|
 | `GET` | `/storage/media/{uuid}/download` | `tetranyble-storage.media.download` | Download a single local file |
@@ -908,9 +931,9 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Tetranyble\Storage\Concerns\BelongsToStorageWorkspace;
-use Tetranyble\Storage\Contracts\WorkspaceSubject;
+use Tetranyble\Storage\Contracts\StorageUser;
 
-class User extends Authenticatable implements WorkspaceSubject
+class User extends Authenticatable implements StorageUser
 {
     use BelongsToStorageWorkspace;
 
@@ -929,13 +952,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Tetranyble\Storage\Contracts\WorkspaceSubject;
+use Tetranyble\Storage\Contracts\StorageUser;
 
-class User extends Authenticatable implements WorkspaceSubject
+class User extends Authenticatable implements StorageUser
 {
     public function tenant()
     {
         return $this->belongsTo(Organisation::class, 'organisation_id');
+    }
+
+    public function getStorageUserIdentifier(): int|string|null
+    {
+        return $this->getKey();
     }
 
     public function getStorageWorkspace(): ?Model
@@ -956,7 +984,7 @@ Point the package to your host models and tables:
 // config/tetranyble-storage.php
 'models' => [
     'workspace' => \App\Models\Organisation::class,
-    'user' => \App\Models\User::class,
+    'user' => \App\Models\User::class, // optional if Laravel auth already uses this model
 ],
 
 'database' => [
@@ -969,7 +997,8 @@ Point the package to your host models and tables:
 
 Notes:
 
-- `models.user` and `models.workspace` tell the package which Eloquent classes represent your authenticated actor and workspace.
+- `models.workspace` tells the package which Eloquent class represents your workspace.
+- `models.user` is optional in most Laravel apps. If omitted, the package falls back to the user model configured on your active auth provider.
 - `database.tables.*` is used by the published package migrations when your host tables are not named `users` and `workspaces`.
 - Package-side storage tables still use the package’s own foreign-key conventions like `workspace_id` and `user_id`.
 - If you do not implement `WorkspaceSubject`, the resolver falls back to `workspace.workspace_relation` and `workspace.workspace_foreign_key`.
@@ -1004,14 +1033,27 @@ use App\Services\MyAccessControlService;
 $this->app->bind(ResourceAccessControl::class, MyAccessControlService::class);
 ```
 
-### Custom Activity Logger
+### Custom Activity Logging
+
+If you want to store activity in your application's own log system, bind both contracts:
 
 ```php
+use Tetranyble\Storage\Contracts\ActivityFeed;
 use Tetranyble\Storage\Contracts\ActivityLogger;
+use App\Services\MyActivityFeed;
 use App\Services\MyActivityLogger;
 
+$this->app->bind(ActivityFeed::class, MyActivityFeed::class);
 $this->app->bind(ActivityLogger::class, MyActivityLogger::class);
 ```
+
+`ActivityLogger` handles writes. `ActivityFeed` handles reads for:
+
+- `WorkspaceFileManagerService::recentPayload()`
+- `WorkspaceFileManagerService::activityPayload()`
+- `MediaVersioningService::activity()`
+
+If you only disable package activities and do not bind replacements, those reads intentionally return empty collections instead of querying the package `activities` table.
 
 ### Adding a new cloud provider
 

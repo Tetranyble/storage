@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage\Domain\Media;
 
+use Tetranyble\Storage\Contracts\ActivityFeed;
 use Tetranyble\Storage\Contracts\ActivityLogger;
 use Tetranyble\Storage\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
@@ -44,6 +45,7 @@ class WorkspaceFileManagerService
         private readonly ResourceAccessControl $access,
         private readonly MediaService $mediaService,
         private readonly ActivityLogger $activityLogger,
+        private readonly ActivityFeed $activityFeed,
         private readonly MediaUploader $uploader,
     ) {}
 
@@ -547,10 +549,7 @@ class WorkspaceFileManagerService
         int $page = 1,
         int $perPage = 25,
     ): array {
-        $activities = $this->storageActivitiesQuery($workspace)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+        $activities = $this->activityFeed->forWorkspace($workspace);
 
         $recentFiles = $activities
             ->where('subject_type', Media::class)
@@ -580,10 +579,7 @@ class WorkspaceFileManagerService
         int $page = 1,
         int $perPage = 50,
     ): array {
-        $activities = $this->storageActivitiesQuery($workspace)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate($perPage, ['*'], 'page', $page);
+        $activities = $this->activityFeed->paginateWorkspace($workspace, $page, $perPage);
 
         $items = collect($activities->items())
             ->filter(function (Activity $activity) use ($workspace, $actor): bool {
@@ -1489,14 +1485,6 @@ class WorkspaceFileManagerService
             'files' => $files,
             'pagination' => $this->paginationMeta($filesPaginator),
         ];
-    }
-
-    private function storageActivitiesQuery(Model $workspace)
-    {
-        return Activity::query()
-            ->where('workspace_id', $workspace->id)
-            ->where('type', 'like', 'storage.%')
-            ->with('subject');
     }
 
     private function logActivity(

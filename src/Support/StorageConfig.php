@@ -4,6 +4,7 @@ namespace Tetranyble\Storage\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
+use Tetranyble\Storage\Contracts\StorageUser;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
 use Tetranyble\Storage\Models\User;
 use Tetranyble\Storage\Models\Workspace;
@@ -17,7 +18,21 @@ class StorageConfig
 
     public static function userModelClass(): string
     {
-        return self::modelClass('user', User::class);
+        $configured = config('tetranyble-storage.models.user');
+        if (is_string($configured) && $configured !== '' && $configured !== User::class) {
+            return self::assertModelClass('user', $configured);
+        }
+
+        $authModel = self::authUserModelClass();
+        if ($authModel !== null) {
+            return $authModel;
+        }
+
+        if (is_string($configured) && $configured !== '') {
+            return self::assertModelClass('user', $configured);
+        }
+
+        return User::class;
     }
 
     public static function workspacesTable(): string
@@ -114,9 +129,27 @@ class StorageConfig
             : (int) $workspaceId;
     }
 
+    public static function actorIdentifier(?Model $actor): int|string|null
+    {
+        if (! $actor) {
+            return null;
+        }
+
+        if ($actor instanceof StorageUser) {
+            return $actor->getStorageUserIdentifier();
+        }
+
+        return method_exists($actor, 'getKey') ? $actor->getKey() : null;
+    }
+
     private static function modelClass(string $key, string $default): string
     {
         $model = config("tetranyble-storage.models.{$key}", $default);
+        return self::assertModelClass($key, $model);
+    }
+
+    private static function assertModelClass(string $key, mixed $model): string
+    {
         if (! is_string($model) || ! is_a($model, Model::class, true)) {
             throw new RuntimeException("The configured storage {$key} model must be an Eloquent model.");
         }
@@ -136,5 +169,33 @@ class StorageConfig
         $table = $model->getTable();
 
         return is_string($table) && $table !== '' ? $table : $fallback;
+    }
+
+    private static function authUserModelClass(): ?string
+    {
+        $guard = config('tetranyble-storage.workspace.guard');
+        if (! is_string($guard) || $guard === '') {
+            $guard = (string) config('auth.defaults.guard', '');
+        }
+        $provider = null;
+
+        if ($guard !== '') {
+            $provider = config("auth.guards.{$guard}.provider");
+        }
+
+        if (! is_string($provider) || $provider === '') {
+            $provider = config('auth.defaults.provider');
+        }
+
+        if (! is_string($provider) || $provider === '') {
+            return null;
+        }
+
+        $model = config("auth.providers.{$provider}.model");
+        if (! is_string($model) || ! is_a($model, Model::class, true)) {
+            return null;
+        }
+
+        return $model;
     }
 }

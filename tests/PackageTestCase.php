@@ -19,6 +19,13 @@ abstract class PackageTestCase extends TestCase
         return [StorageServiceProvider::class];
     }
 
+    protected function getEnvironmentSetUp($app): void
+    {
+        $app['config']->set('tetranyble-storage.activities.enabled', true);
+        $app['config']->set('tetranyble-storage.activities.load_migrations', true);
+        $app['config']->set('tetranyble-storage.routes.enabled', true);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

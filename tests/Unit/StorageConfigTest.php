@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Concerns\BelongsToStorageWorkspace;
+use Tetranyble\Storage\Contracts\StorageUser;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
 use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Support\StorageConfig;
@@ -40,6 +41,7 @@ class StorageConfigTest extends PackageTestCase
 
         $this->assertInstanceOf(HostWorkspaceModel::class, $resolver->currentWorkspace($request));
         $this->assertSame($workspace->id, StorageConfig::actorWorkspaceId($actor));
+        $this->assertSame($actor->getKey(), StorageConfig::actorIdentifier($actor));
         $this->assertSame($workspace->id, MediaUploadOptions::forModel($actor)->workspaceId);
     }
 
@@ -50,6 +52,17 @@ class StorageConfigTest extends PackageTestCase
 
         $this->assertSame('members', StorageConfig::usersTable());
         $this->assertSame('organisations', StorageConfig::workspacesTable());
+    }
+
+    public function test_user_model_class_falls_back_to_laravel_auth_provider_model(): void
+    {
+        config()->set('tetranyble-storage.models.user', \Tetranyble\Storage\Models\User::class);
+        config()->set('tetranyble-storage.workspace.guard', 'web');
+        config()->set('auth.defaults.guard', 'web');
+        config()->set('auth.guards.web.provider', 'users');
+        config()->set('auth.providers.users.model', HostAuthUser::class);
+
+        $this->assertSame(HostAuthUser::class, StorageConfig::userModelClass());
     }
 
     public function test_workspace_subject_interface_resolves_workspace_without_relation_config(): void
@@ -82,7 +95,7 @@ class HostWorkspaceModel extends \Tetranyble\Storage\Models\Workspace
     protected $table = 'workspaces';
 }
 
-class HostUserWithStorageWorkspace extends Authenticatable
+class HostUserWithStorageWorkspace extends Authenticatable implements StorageUser
 {
     use BelongsToStorageWorkspace;
 
@@ -108,4 +121,11 @@ class HostUserWithWorkspaceSubject extends Authenticatable implements WorkspaceS
     {
         return $this->organisation_id;
     }
+}
+
+class HostAuthUser extends Authenticatable
+{
+    protected $table = 'users';
+
+    protected $guarded = [];
 }

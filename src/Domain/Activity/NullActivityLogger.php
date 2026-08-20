@@ -1,10 +1,11 @@
 <?php
 
-namespace Tetranyble\Storage\Contracts;
+namespace Tetranyble\Storage\Domain\Activity;
 
+use Tetranyble\Storage\Contracts\ActivityLogger;
 use Illuminate\Database\Eloquent\Model;
 
-interface ActivityLogger
+class NullActivityLogger implements ActivityLogger
 {
     public function log(
         Model $subject,
@@ -14,5 +15,5 @@ interface ActivityLogger
         array $meta = [],
         array $changes = [],
         ?int $workspaceId = null,
-    ): void;
+    ): void {}
 }

@@ -18,8 +18,8 @@ class DatabaseActivityLogger implements ActivityLogger
         array $meta = [],
         array $changes = [],
         ?int $workspaceId = null,
-    ): Activity {
-        return Activity::query()->create([
+    ): void {
+        Activity::query()->create([
             'uuid' => (string) Str::uuid(),
             'user_id' => $actor?->id,
             'workspace_id' => $workspaceId ?? $this->resolveWorkspaceId($subject, $actor),

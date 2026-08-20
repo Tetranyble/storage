@@ -2,12 +2,12 @@
 
 namespace Tetranyble\Storage\Domain\Media;
 
+use Tetranyble\Storage\Contracts\ActivityFeed;
 use Tetranyble\Storage\Contracts\ActivityLogger;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
 use Tetranyble\Storage\Domain\FileSystem\StorageService;
 use Tetranyble\Storage\Enums\MediaRevisionEventType;
-use Tetranyble\Storage\Models\Activity;
 use Tetranyble\Storage\Models\Media;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +27,7 @@ class MediaVersioningService
         private readonly FileSystemContract $files,
         private readonly StorageService     $storage,
         private readonly ActivityLogger     $activityLogger,
+        private readonly ActivityFeed       $activityFeed,
     ) {}
 
     // ---------------------------------------------------------------
@@ -64,16 +65,8 @@ class MediaVersioningService
     public function activity(Media $media): Collection
     {
         $groupUuid = $this->ensureVersionSeed($media);
-        $versionIds = Media::withTrashed()
-            ->where('version_group_uuid', $groupUuid)
-            ->pluck('id');
 
-        return Activity::query()
-            ->where('subject_type', $media->getMorphClass())
-            ->whereIn('subject_id', $versionIds)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+        return $this->activityFeed->forVersionGroup($media, $groupUuid);
     }
 
     // ---------------------------------------------------------------

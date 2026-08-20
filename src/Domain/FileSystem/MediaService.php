@@ -19,7 +19,6 @@ use Tetranyble\Storage\Enums\MediaRevisionEventType;
 use Tetranyble\Storage\Enums\MediaPurpose;
 use Tetranyble\Storage\Models\Folder;
 use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Activity;
 use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;

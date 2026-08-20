@@ -2,7 +2,7 @@
 
 return [
     // A single package-wide default is used whenever no storage driver is supplied.
-    'default_disk' => env('TETRANYBLE_STORAGE_DISK'),
+    'default_disk' => env('STORAGE_DISK'),
 
     'transfer' => [
         'authorizer' => \Tetranyble\Storage\Domain\Media\AccessControlTransferAuthorizer::class,
@@ -18,9 +18,13 @@ return [
     ],
     'database' => [
         'tables' => [
-            'users' => env('TETRANYBLE_STORAGE_USERS_TABLE'),
-            'workspaces' => env('TETRANYBLE_STORAGE_WORKSPACES_TABLE'),
+            'users' => env('STORAGE_USERS_TABLE'),
+            'workspaces' => env('STORAGE_WORKSPACES_TABLE'),
         ],
+    ],
+    'activities' => [
+        'enabled' => env('STORAGE_ACTIVITIES_ENABLED', false),
+        'load_migrations' => env('STORAGE_ACTIVITY_MIGRATIONS', false),
     ],
     'workspace' => [
         'resolver' => \Tetranyble\Storage\Workspace\AuthenticatedWorkspace::class,
@@ -68,7 +72,7 @@ return [
 
     'routes' => [
         // Disable every package HTTP endpoint while keeping its services available.
-        'enabled' => env('TETRANYBLE_STORAGE_ROUTES_ENABLED', true),
+        'enabled' => env('STORAGE_ROUTES_ENABLED', false),
         'prefix' => 'storage',
         'name' => 'tetranyble-storage.',
         'middleware' => ['web', 'auth'],

@@ -4,12 +4,12 @@ namespace Tetranyble\Storage\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Tetranyble\Storage\Models\Concerns\HasUuid;
-use Tetranyble\Storage\Contracts\WorkspaceSubject;
+use Tetranyble\Storage\Contracts\StorageUser;
 use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class User extends Authenticatable implements WorkspaceSubject
+class User extends Authenticatable implements StorageUser
 {
     use HasUuid;
 
@@ -37,5 +37,10 @@ class User extends Authenticatable implements WorkspaceSubject
     public function getStorageWorkspaceIdentifier(): int|string|null
     {
         return $this->getAttribute(StorageConfig::actorWorkspaceForeignKey());
+    }
+
+    public function getStorageUserIdentifier(): int|string|null
+    {
+        return $this->getKey();
     }
 }

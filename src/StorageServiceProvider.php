@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage;
 
+use Tetranyble\Storage\Contracts\ActivityFeed;
 use Tetranyble\Storage\Contracts\ActivityLogger;
 use Tetranyble\Storage\Contracts\ResumableUploadManager;
 use Tetranyble\Storage\Contracts\ResourceAccessControl;
@@ -9,7 +10,10 @@ use Tetranyble\Storage\Contracts\Workspace;
 use Tetranyble\Storage\Contracts\StorageTransferAuthorizer;
 use Tetranyble\Storage\Contracts\RemoteMediaImporter;
 use Tetranyble\Storage\Contracts\RemoteUrlValidator;
+use Tetranyble\Storage\Domain\Activity\DatabaseActivityFeed;
 use Tetranyble\Storage\Domain\Activity\DatabaseActivityLogger;
+use Tetranyble\Storage\Domain\Activity\NullActivityFeed;
+use Tetranyble\Storage\Domain\Activity\NullActivityLogger;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\MediaUploader;
 use Tetranyble\Storage\Domain\FileSystem\FileSystem;
@@ -47,7 +51,22 @@ class StorageServiceProvider extends ServiceProvider
         }
         $this->app->bind(ResumableUploadManager::class, ResumableUploadService::class);
         if (! $this->app->bound(ActivityLogger::class)) {
-            $this->app->bind(ActivityLogger::class, DatabaseActivityLogger::class);
+            $this->app->bind(ActivityLogger::class, function ($app) {
+                $logger = (bool) $app['config']->get('tetranyble-storage.activities.enabled', false)
+                    ? DatabaseActivityLogger::class
+                    : NullActivityLogger::class;
+
+                return $app->make($logger);
+            });
+        }
+        if (! $this->app->bound(ActivityFeed::class)) {
+            $this->app->bind(ActivityFeed::class, function ($app) {
+                $feed = (bool) $app['config']->get('tetranyble-storage.activities.enabled', false)
+                    ? DatabaseActivityFeed::class
+                    : NullActivityFeed::class;
+
+                return $app->make($feed);
+            });
         }
         if (! $this->app->bound(ResourceAccessControl::class)) {
             $this->app->bind(ResourceAccessControl::class, AccessControlService::class);
@@ -88,6 +107,7 @@ class StorageServiceProvider extends ServiceProvider
             $app->make(FileSystemContract::class),
             $app->make(StorageService::class),
             $app->make(ActivityLogger::class),
+            $app->make(ActivityFeed::class),
         ));
 
         $this->app->bind(MediaShareService::class);
@@ -116,6 +136,9 @@ class StorageServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        if ($this->shouldLoadActivityMigrations()) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations/activities');
+        }
         if ((bool) config('tetranyble-storage.routes.enabled', true)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/storage.php');
         }
@@ -124,9 +147,11 @@ class StorageServiceProvider extends ServiceProvider
             __DIR__.'/../config/tetranyble-storage.php' => config_path('tetranyble-storage.php'),
         ], 'tetranyble-storage-config');
 
-        $this->publishes([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
-        ], 'tetranyble-storage-migrations');
+        $this->publishes($this->migrationPublishPaths(__DIR__.'/../database/migrations'), 'tetranyble-storage-migrations');
+        $this->publishes(
+            $this->migrationPublishPaths(__DIR__.'/../database/migrations/activities'),
+            'tetranyble-storage-activity-migrations',
+        );
 
         $this->publishes([
             __DIR__.'/../routes/storage.php' => base_path('routes/tetranyble-storage.php'),
@@ -139,4 +164,20 @@ class StorageServiceProvider extends ServiceProvider
         }
     }
 
+    private function shouldLoadActivityMigrations(): bool
+    {
+        return (bool) config(
+            'tetranyble-storage.activities.load_migrations',
+            config('tetranyble-storage.activities.enabled', false),
+        );
+    }
+
+    private function migrationPublishPaths(string $directory): array
+    {
+        $migrations = glob($directory.'/*_*.php') ?: [];
+
+        return collect($migrations)
+            ->mapWithKeys(fn (string $path) => [$path => database_path('migrations/'.basename($path))])
+            ->all();
+    }
 }

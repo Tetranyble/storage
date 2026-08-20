@@ -27,4 +27,9 @@ trait BelongsToStorageWorkspace
     {
         return $this->getAttribute(StorageConfig::actorWorkspaceForeignKey());
     }
+
+    public function getStorageUserIdentifier(): int|string|null
+    {
+        return method_exists($this, 'getKey') ? $this->getKey() : null;
+    }
 }
