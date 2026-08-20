@@ -1,0 +1,83 @@
+{
+    "name": "tetranyble/storage",
+    "description": "Standalone storage and media services for Laravel, maintained by Tetranyble.",
+    "keywords": [
+        "cloud-storage",
+        "laravel",
+        "media-library",
+        "multi-tenancy",
+        "storage",
+        "file-manager",
+        "media-upload",
+        "media-versioning",
+        "cloud-drive",
+        "storage-quota",
+        "media-sharing",
+        "media-access"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "ext-fileinfo": "*",
+        "ext-json": "*",
+        "php": "^8.2",
+        "cloudinary/cloudinary_php": "^2.0",
+        "google/apiclient": "^2.15",
+        "guzzlehttp/psr7": "^2.7",
+        "illuminate/console": "^12.0",
+        "illuminate/contracts": "^12.0",
+        "illuminate/database": "^12.0",
+        "illuminate/events": "^12.0",
+        "illuminate/filesystem": "^12.0",
+        "illuminate/http": "^12.0",
+        "illuminate/mail": "^12.0",
+        "illuminate/routing": "^12.0",
+        "illuminate/support": "^12.0",
+        "illuminate/validation": "^12.0",
+        "league/flysystem": "^3.0",
+        "league/flysystem-aws-s3-v3": "^3.0",
+        "league/flysystem-azure-blob-storage": "^3.0",
+        "league/flysystem-google-cloud-storage": "^3.0",
+        "microsoft/microsoft-graph": "^1.0",
+        "spatie/dropbox-api": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "orchestra/testbench": "^10.0",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tetranyble\\Storage\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tetranyble\\Storage\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "@php vendor/bin/phpunit",
+        "test:feature": "@php vendor/bin/phpunit tests/Feature",
+        "test:unit": "@php vendor/bin/phpunit tests/Unit"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Tetranyble\\Storage\\StorageServiceProvider"
+            ],
+            "aliases": {
+                "TetranybleFileManager":     "Tetranyble\\Storage\\Facades\\FileManager",
+                "TetranybleMediaUpload":     "Tetranyble\\Storage\\Facades\\MediaUpload",
+                "TetranybleMediaVersioning": "Tetranyble\\Storage\\Facades\\MediaVersioning",
+                "TetranybleMediaMail":       "Tetranyble\\Storage\\Facades\\MediaMail",
+                "TetranybleCloudDrive":      "Tetranyble\\Storage\\Facades\\CloudDrive",
+                "TetranybleStorageQuota":    "Tetranyble\\Storage\\Facades\\StorageQuota",
+                "TetranybleMediaSharing":    "Tetranyble\\Storage\\Facades\\MediaSharing",
+                "TetranybleMediaAccess":     "Tetranyble\\Storage\\Facades\\MediaAccess"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
