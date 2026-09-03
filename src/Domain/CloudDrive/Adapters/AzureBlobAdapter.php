@@ -2,17 +2,17 @@
 
 namespace Tetranyble\Storage\Domain\CloudDrive\Adapters;
 
-use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\Storage\Blob\BlobServiceClient;
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use League\Flysystem\Filesystem;
-use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 
 class AzureBlobAdapter extends AbstractFlysystemAdapter
 {
     public function __construct(string $connectionString, string $container)
     {
-        $client      = BlobRestProxy::createBlobService($connectionString);
-        $adapter     = new AzureBlobStorageAdapter($client, $container);
-        $this->disk  = new Filesystem($adapter);
+        $client = BlobServiceClient::fromConnectionString($connectionString);
+        $adapter = new AzureBlobStorageAdapter($client->getContainerClient($container));
+        $this->disk = new Filesystem($adapter);
     }
 
     /**

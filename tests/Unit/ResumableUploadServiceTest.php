@@ -10,11 +10,15 @@ use Tetranyble\Storage\Domain\FileSystem\Enums\UploadStrategy;
 use Tetranyble\Storage\Domain\FileSystem\Exceptions\IncompleteUploadSessionException;
 use Tetranyble\Storage\Domain\FileSystem\Exceptions\UploadSessionConflictException;
 use Tetranyble\Storage\Enums\MediaPurpose;
+use Tetranyble\Storage\Models\Media;
+use Tetranyble\Storage\Models\UploadSessionChunk;
 use Tetranyble\Storage\Models\Workspace;
 use Tetranyble\Storage\Models\UploadSession;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class ResumableUploadServiceTest extends PackageTestCase
 {
@@ -181,6 +185,161 @@ class ResumableUploadServiceTest extends PackageTestCase
             'status' => UploadSessionStatus::CONFLICTED->value,
             'conflict_reason' => 'chunk_mismatch',
         ]);
+    }
+
+
+    public function test_chunk_storage_is_compensated_when_chunk_row_persistence_fails(): void
+    {
+        $workspace = Workspace::create(['name' => 'Chunk rollback']);
+        $service = $this->app->make(ResumableUploadManager::class);
+        $session = $service->startSession(new UploadSessionOptions(
+            identifier: 'chunk-db-failure',
+            upload: new MediaUploadOptions(
+                workspaceId: $workspace->id,
+                purpose: MediaPurpose::GENERAL,
+                directory: 'workspace',
+                module: 'file-centre',
+                strategy: UploadStrategy::CHUNKED,
+                temporary: false,
+                originalName: 'notes.txt',
+            ),
+            totalChunks: 1,
+            totalSize: 5,
+            mimeType: 'text/plain',
+        ));
+
+        $event = 'eloquent.creating: '.UploadSessionChunk::class;
+        Event::listen($event, static function (): never {
+            throw new RuntimeException('forced chunk persistence failure');
+        });
+
+        try {
+            $service->appendChunk(
+                $session,
+                UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+                1,
+            );
+            $this->fail('The forced chunk persistence failure should have escaped.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('forced chunk persistence failure', $exception->getMessage());
+        } finally {
+            Event::forget($event);
+        }
+
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        $this->assertDatabaseMissing('upload_session_chunks', [
+            'upload_session_id' => $session->id,
+            'chunk_number' => 1,
+        ]);
+        $this->assertSame(0, $session->fresh()->received_chunks);
+    }
+
+    public function test_failed_cancellation_persistence_keeps_chunks_and_session_resumable(): void
+    {
+        $workspace = Workspace::create(['name' => 'Cancel rollback']);
+        $service = $this->app->make(ResumableUploadManager::class);
+        $session = $service->startSession(new UploadSessionOptions(
+            identifier: 'cancel-db-failure',
+            upload: new MediaUploadOptions(
+                workspaceId: $workspace->id,
+                purpose: MediaPurpose::GENERAL,
+                directory: 'workspace',
+                module: 'file-centre',
+                strategy: UploadStrategy::CHUNKED,
+                temporary: false,
+                originalName: 'notes.txt',
+            ),
+            totalChunks: 2,
+            totalSize: 10,
+            mimeType: 'text/plain',
+        ));
+        $session = $service->appendChunk(
+            $session,
+            UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+            1,
+        );
+        $chunkPath = (string) $session->chunks()->firstOrFail()->path;
+
+        $event = 'eloquent.updating: '.UploadSession::class;
+        Event::listen($event, static function (UploadSession $candidate): void {
+            if ($candidate->isDirty('status') && $candidate->status === UploadSessionStatus::CANCELLED) {
+                throw new RuntimeException('forced cancellation persistence failure');
+            }
+        });
+
+        try {
+            $service->cancelSession($session);
+            $this->fail('The forced cancellation persistence failure should have escaped.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('forced cancellation persistence failure', $exception->getMessage());
+        } finally {
+            Event::forget($event);
+        }
+
+        $fresh = $session->fresh();
+        $this->assertSame(UploadSessionStatus::UPLOADING, $fresh->status);
+        $this->assertNull($fresh->cancelled_at);
+        Storage::disk('local')->assertExists($chunkPath);
+        $this->assertDatabaseHas('upload_session_chunks', [
+            'upload_session_id' => $session->id,
+            'chunk_number' => 1,
+        ]);
+    }
+
+    public function test_failed_final_session_link_compensates_created_media_and_preserves_chunks_for_retry(): void
+    {
+        $workspace = Workspace::create([
+            'name' => 'Finalize rollback',
+            'storage_quota_bytes' => 1024 * 1024,
+            'storage_used_bytes' => 0,
+        ]);
+        $service = $this->app->make(ResumableUploadManager::class);
+        $session = $service->startSession(new UploadSessionOptions(
+            identifier: 'final-link-db-failure',
+            upload: new MediaUploadOptions(
+                workspaceId: $workspace->id,
+                purpose: MediaPurpose::GENERAL,
+                directory: 'workspace',
+                module: 'file-centre',
+                strategy: UploadStrategy::CHUNKED,
+                temporary: false,
+                originalName: 'notes.txt',
+            ),
+            totalChunks: 1,
+            totalSize: 5,
+            mimeType: 'text/plain',
+        ));
+        $session = $service->appendChunk(
+            $session,
+            UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+            1,
+        );
+        $chunkPath = (string) $session->chunks()->firstOrFail()->path;
+
+        $event = 'eloquent.updating: '.UploadSession::class;
+        Event::listen($event, static function (UploadSession $candidate): void {
+            if ($candidate->isDirty('media_id') && $candidate->media_id !== null) {
+                throw new RuntimeException('forced final session link failure');
+            }
+        });
+
+        try {
+            $service->finalizeSession($session);
+            $this->fail('The forced final session link failure should have escaped.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('forced final session link failure', $exception->getMessage());
+        } finally {
+            Event::forget($event);
+        }
+
+        $fresh = $session->fresh();
+        $this->assertSame(UploadSessionStatus::UPLOADING, $fresh->status);
+        $this->assertNull($fresh->media_id);
+        $this->assertNull($fresh->finalized_at);
+        $this->assertSame(0, Media::query()->count());
+        $this->assertSame(0, (int) $workspace->fresh()->storage_used_bytes);
+        Storage::disk('local')->assertExists($chunkPath);
+        $this->assertSame([$chunkPath], Storage::disk('local')->allFiles());
     }
 
     public function test_incomplete_session_cannot_be_finalized(): void

@@ -329,8 +329,8 @@ class CrossDriveTransferTest extends PackageTestCase
     private function makeService(
         MockInterface  $fromAdapter,
         MockInterface  $toAdapter,
-        ConnectedDrive $fromDrive = null,
-        ConnectedDrive $toDrive   = null,
+        ?ConnectedDrive $fromDrive = null,
+        ?ConnectedDrive $toDrive   = null,
     ): ConnectedDriveService {
         $svc = Mockery::mock(
             ConnectedDriveService::class,

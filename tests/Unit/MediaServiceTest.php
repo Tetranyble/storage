@@ -110,6 +110,32 @@ class MediaServiceTest extends PackageTestCase
         $this->assertDatabaseMissing('media', ['id' => $media->id]);
     }
 
+
+    public function test_delete_media_item_removes_the_original_and_generated_thumbnail(): void
+    {
+        $service = $this->app->make(MediaService::class);
+        $workspace = Workspace::create(['name' => 'Workspace']);
+        $media = Media::create([
+            'workspace_id' => $workspace->id,
+            'disk' => Disk::PUBLIC,
+            'path' => 'media/original.jpg',
+            'thumbnail_path' => 'media/.thumbnails/original.jpg',
+            'mime_type' => 'image/jpeg',
+            'size' => 100,
+            'use' => MediaPurpose::GENERAL,
+            'current' => true,
+        ]);
+
+        Storage::disk('public')->put($media->path, 'original');
+        Storage::disk('public')->put($media->thumbnail_path, 'thumbnail');
+
+        $service->deleteMediaItem($media);
+
+        Storage::disk('public')->assertMissing('media/original.jpg');
+        Storage::disk('public')->assertMissing('media/.thumbnails/original.jpg');
+        $this->assertDatabaseMissing('media', ['id' => $media->id]);
+    }
+
     public function test_upload_standalone_from_url_respects_max_size_override(): void
     {
         $service = $this->app->make(MediaService::class);

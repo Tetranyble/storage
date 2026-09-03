@@ -2,13 +2,21 @@
 
 namespace Tetranyble\Storage\Http\Controllers;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
+use Tetranyble\Storage\Application\Media\DeleteMedia;
+use Tetranyble\Storage\Application\Media\MoveMedia;
+use Tetranyble\Storage\Application\Media\RenameMedia;
+use Tetranyble\Storage\Application\Media\RestoreMedia;
+use Tetranyble\Storage\Application\Media\TrashMedia;
+use Tetranyble\Storage\Application\Media\UploadMedia;
 use Tetranyble\Storage\Contracts\Workspace;
 use Tetranyble\Storage\Domain\FileSystem\StorageService;
 use Tetranyble\Storage\Domain\Media\MediaLibraryService;
 use Tetranyble\Storage\Domain\Media\WorkspaceFileManagerService;
+use Tetranyble\Storage\Domain\Media\WorkspaceFileQueryService;
 
 class MediaLibraryController extends StorageController
 {
@@ -17,6 +25,13 @@ class MediaLibraryController extends StorageController
         protected readonly MediaLibraryService $library,
         protected readonly StorageService $storage,
         protected readonly WorkspaceFileManagerService $manager,
+        protected readonly WorkspaceFileQueryService $queries,
+        protected readonly UploadMedia $uploadMedia,
+        protected readonly TrashMedia $trashMedia,
+        protected readonly RestoreMedia $restoreMedia,
+        protected readonly DeleteMedia $deleteMedia,
+        protected readonly MoveMedia $moveMedia,
+        protected readonly RenameMedia $renameMedia,
     ) {
         parent::__construct($workspace);
     }
@@ -32,7 +47,7 @@ class MediaLibraryController extends StorageController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
-        $payload = $this->manager->indexPayload(
+        $payload = $this->queries->indexPayload(
             workspace: $this->workspace($request),
             relativePath: (string) ($validated['path'] ?? ''),
             search: (string) ($validated['search'] ?? ''),
@@ -70,7 +85,7 @@ class MediaLibraryController extends StorageController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
-        return $this->success('Trash loaded.', $this->manager->trashPayload(
+        return $this->success('Trash loaded.', $this->queries->trashPayload(
             workspace: $this->workspace($request),
             sortBy: (string) ($validated['sort_by'] ?? 'deleted_at'),
             sortDir: (string) ($validated['sort_dir'] ?? 'desc'),
@@ -117,20 +132,17 @@ class MediaLibraryController extends StorageController
         ]);
 
         $workspace = $this->workspace($request);
-        $folder = $this->manager->resolveFolderById(
-            $workspace,
-            isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
-        );
+        $folderId = isset($validated['folder_id']) ? (int) $validated['folder_id'] : null;
         $moved = 0;
 
         foreach ($validated['media_ids'] as $mediaId) {
             try {
                 $media = $this->media($workspace, (int) $mediaId, true);
-            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            } catch (ModelNotFoundException) {
                 continue;
             }
 
-            $this->manager->moveMediaToFolder($workspace, $media, $folder, $this->actor($request));
+            $this->moveMedia->handle($workspace, $media, $folderId, $this->actor($request));
             $moved++;
         }
 
@@ -157,19 +169,15 @@ class MediaLibraryController extends StorageController
     {
         $validated = $request->validate([
             'files' => ['required', 'array', 'min:1'],
-            'files.*' => ['required', 'file', 'max:20480'],
+            'files.*' => ['required', 'file', 'max:'.$this->uploadMaxKilobytes()],
             'folder_id' => ['nullable', 'integer'],
         ]);
 
         $workspace = $this->workspace($request);
-        $folder = $this->manager->resolveFolderById(
-            $workspace,
-            isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
-        );
-        $uploaded = $this->manager->uploadFiles(
+        $uploaded = $this->uploadMedia->uploadLibraryFiles(
             $workspace,
             $validated['files'],
-            $folder,
+            isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
             $this->actor($request),
         );
 
@@ -182,7 +190,7 @@ class MediaLibraryController extends StorageController
     public function destroy(Request $request, string $media): JsonResponse
     {
         $workspace = $this->workspace($request);
-        $this->manager->trashMedia(
+        $this->trashMedia->handle(
             $workspace,
             $this->media($workspace, $media),
             $this->actor($request),
@@ -194,7 +202,7 @@ class MediaLibraryController extends StorageController
     public function restore(Request $request, string $media): JsonResponse
     {
         $workspace = $this->workspace($request);
-        $this->manager->restoreMedia(
+        $this->restoreMedia->handle(
             $workspace,
             $this->media($workspace, $media, true),
             $this->actor($request),
@@ -206,7 +214,7 @@ class MediaLibraryController extends StorageController
     public function forceDelete(Request $request, string $media): JsonResponse
     {
         $workspace = $this->workspace($request);
-        $this->manager->permanentlyDeleteMedia(
+        $this->deleteMedia->handle(
             $workspace,
             $this->media($workspace, $media, true),
             $this->actor($request),
@@ -219,14 +227,10 @@ class MediaLibraryController extends StorageController
     {
         $validated = $request->validate(['folder_id' => ['nullable', 'integer']]);
         $workspace = $this->workspace($request);
-        $folder = $this->manager->resolveFolderById(
-            $workspace,
-            isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
-        );
-        $resolved = $this->manager->moveMediaToFolder(
+        $resolved = $this->moveMedia->handle(
             $workspace,
             $this->media($workspace, $media),
-            $folder,
+            isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
             $this->actor($request),
         );
 
@@ -239,7 +243,7 @@ class MediaLibraryController extends StorageController
         $workspace = $this->workspace($request);
 
         try {
-            $resolved = $this->manager->renameMedia(
+            $resolved = $this->renameMedia->handle(
                 $workspace,
                 $this->media($workspace, $media),
                 $validated['name'],
@@ -312,5 +316,12 @@ class MediaLibraryController extends StorageController
         );
 
         return $this->success('Share link revoked.');
+    }
+
+    private function uploadMaxKilobytes(): int
+    {
+        $maxBytes = max(1, (int) config('tetranyble-storage.uploads.max_size', 50 * 1024 * 1024));
+
+        return max(1, (int) ceil($maxBytes / 1024));
     }
 }

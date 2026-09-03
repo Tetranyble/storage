@@ -5,12 +5,14 @@ namespace Tetranyble\Storage\Domain\Media;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
+use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
 use Tetranyble\Storage\Models\Media;
 
 class MediaPostProcessor
 {
     public function __construct(
         private readonly FileSystemContract $files,
+        private readonly StorageOrphanService $orphans,
     ) {}
 
     public function dispatch(Media $media, MediaUploadOptions $options): void
@@ -86,12 +88,33 @@ class MediaPostProcessor
         $thumbPath = $this->thumbnailPath($media->path);
 
         try {
-            $this->files->put($thumbPath, $thumbBinary, $media->disk);
+            if (! $this->files->put($thumbPath, $thumbBinary, $media->disk)) {
+                throw new \RuntimeException('Thumbnail storage write returned false.');
+            }
         } catch (\Throwable) {
+            // A failed adapter may still have written a partial derivative. Never
+            // leave an unowned thumbnail behind when generation cannot commit.
+            $this->orphans->deleteOrTrack(
+                $media->disk,
+                $thumbPath,
+                $media->workspace_id ? (int) $media->workspace_id : null,
+                reason: 'thumbnail_rollback',
+            );
+
             return null;
         }
 
-        $media->forceFill(['thumbnail_path' => $thumbPath])->save();
+        try {
+            $media->forceFill(['thumbnail_path' => $thumbPath])->save();
+        } catch (\Throwable $exception) {
+            $this->orphans->deleteOrTrack(
+                $media->disk,
+                $thumbPath,
+                $media->workspace_id ? (int) $media->workspace_id : null,
+                reason: 'thumbnail_rollback',
+            );
+            throw $exception;
+        }
 
         return $thumbPath;
     }

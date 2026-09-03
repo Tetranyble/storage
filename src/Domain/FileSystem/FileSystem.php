@@ -154,6 +154,13 @@ class FileSystem implements FileSystemContract
         return $this->adapter($disk)->delete($path);
     }
 
+    public function exists(string $path, ?Disk $disk = null): bool
+    {
+        $disk = $disk ?? $this->disk;
+
+        return $this->adapter($disk)->exists($path);
+    }
+
     public function moveDirectory(string $from, string $to, Disk $fromDisk, ?Disk $toDisk = null): bool
     {
         $toDisk = $toDisk ?? $fromDisk;
@@ -366,66 +373,19 @@ class FileSystem implements FileSystemContract
 
     public function get(string $path, ?Disk $disk = null, ?int $maxSizeBytes = null): string
     {
-        $disk = $disk ?? $this->disk;
-        $maxConfig = (int) config('tetranyble-storage.remote.max_size', 50 * 1024 * 1024);
-        $maxSize = $maxSizeBytes ?? $maxConfig; // per-call override wins
-
-        // --- Absolute URL case --------------------------------------------------
         if ($this->isAbsoluteUrl($path)) {
-            // Optional pre-check via Content-Length
-            if ($maxSize > 0) {
-                $headers = @get_headers($path, true);
-
-                if ($headers !== false && isset($headers['Content-Length'])) {
-                    $lengthHeader = $headers['Content-Length'];
-
-                    // get_headers may return multiple values for same header
-                    if (is_array($lengthHeader)) {
-                        $lengthHeader = end($lengthHeader);
-                    }
-
-                    $lengthBytes = (int) $lengthHeader;
-
-                    if ($lengthBytes > 0 && $lengthBytes > $maxSize) {
-                        throw new \RuntimeException(sprintf(
-                            'External content too large (%d bytes, max %d bytes) for get(). URL: %s',
-                            $lengthBytes,
-                            $maxSize,
-                            $path
-                        ));
-                    }
-                }
-            }
-
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 60,
-                ],
-            ]);
-
-            if ($maxSize > 0) {
-                // Read at most maxSize + 1 bytes, to detect overflow
-                $contents = @file_get_contents($path, false, $context, 0, $maxSize + 1);
-            } else {
-                $contents = @file_get_contents($path, false, $context);
-            }
-
-            if ($contents === false) {
-                throw new \RuntimeException("Unable to read external URL [$path].");
-            }
-
-            if ($maxSize > 0 && strlen($contents) > $maxSize) {
-                throw new \RuntimeException(sprintf(
-                    'External content exceeded max size during read (>%d bytes). URL: %s',
-                    $maxSize,
-                    $path
-                ));
-            }
-
-            return $contents;
+            throw new \RuntimeException(
+                'FileSystem::get() only reads configured storage paths. '
+                .'Use RemoteMediaImporter for remote HTTP/HTTPS content.'
+            );
         }
 
-        // --- Local/disk path case ----------------------------------------------
+        $disk = $disk ?? $this->disk;
+        $maxSize = $maxSizeBytes ?? (int) config(
+            'tetranyble-storage.reads.max_size',
+            50 * 1024 * 1024,
+        );
+
         if ($maxSize > 0) {
             $size = $this->size($path, $disk);
 

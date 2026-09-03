@@ -64,6 +64,7 @@ abstract class PackageTestCase extends TestCase
         Schema::disableForeignKeyConstraints();
 
         foreach ([
+            'storage_orphans',
             'upload_session_chunks',
             'upload_sessions',
             'storage_comments',
@@ -71,6 +72,7 @@ abstract class PackageTestCase extends TestCase
             'resource_stars',
             'activities',
             'collaborator_grants',
+            'media_version_groups',
             'media_shares',
             'media',
             'folders',
@@ -175,6 +177,36 @@ abstract class PackageTestCase extends TestCase
             $table->softDeletes();
             $table->foreign('previous_version_id')->references('id')->on('media')->nullOnDelete();
             $table->index('workspace_id');
+        });
+
+        Schema::table('media', function (Blueprint $table): void {
+            $table->unique(
+                ['version_group_uuid', 'version_number'],
+                'media_version_group_number_unique'
+            );
+        });
+
+        Schema::create('media_version_groups', function (Blueprint $table): void {
+            $table->uuid('version_group_uuid')->primary();
+            $table->unsignedInteger('next_version_number')->default(2);
+            $table->unsignedBigInteger('current_media_id')->nullable()->index();
+            $table->timestamps();
+            $table->foreign('current_media_id')->references('id')->on('media')->nullOnDelete();
+        });
+
+        Schema::create('storage_orphans', function (Blueprint $table): void {
+            $table->id();
+            $table->uuid()->unique();
+            $table->unsignedBigInteger('workspace_id')->nullable()->index();
+            $table->string('disk', 64);
+            $table->text('path');
+            $table->string('object_key_hash', 64)->unique();
+            $table->unsignedBigInteger('size')->nullable();
+            $table->string('reason', 64)->default('cleanup');
+            $table->unsignedInteger('attempts')->default(0);
+            $table->text('last_error')->nullable();
+            $table->timestamp('last_attempt_at')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('media_shares', function (Blueprint $table): void {

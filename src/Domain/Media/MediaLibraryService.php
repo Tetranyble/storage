@@ -4,10 +4,12 @@ namespace Tetranyble\Storage\Domain\Media;
 
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
+use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
 use Tetranyble\Storage\Domain\FileSystem\StorageService;
 use Tetranyble\Storage\Enums\AccessScope;
 use Tetranyble\Storage\Models\Folder;
 use Tetranyble\Storage\Models\Media;
+use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,8 @@ class MediaLibraryService
     public function __construct(
         protected FileSystemContract $files,
         protected StorageService $storage,
+        protected StorageOrphanService $orphans,
+        protected MediaDeletionService $deletion,
     ) {
     }
 
@@ -124,83 +128,135 @@ class MediaLibraryService
 
         $sourceFolders = $this->subtreeFolders($folder);
         $oldPaths = $sourceFolders->mapWithKeys(fn (Folder $item) => [$item->id => $item->path])->all();
-        $copies = [];
+        $rootCopyPath = $this->uniqueChildPath($folder->workspace_id, $targetParent->path, $rootSlug);
+        $targetPaths = $sourceFolders->mapWithKeys(fn (Folder $item) => [
+            $item->id => $this->replacePathPrefix($item->path, $folder->path, $rootCopyPath),
+        ])->all();
+        $sourceMedia = Media::query()
+            ->whereIn('folder_id', $sourceFolders->pluck('id'))
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->get();
 
-        return DB::transaction(function () use ($folder, $targetParent, $actor, $rootName, $rootSlug, $sourceFolders, $oldPaths, &$copies) {
-            $rootCopyPath = $this->uniqueChildPath($folder->workspace_id, $targetParent->path, $rootSlug);
+        $plans = $this->buildFolderMediaCopyPlans($sourceMedia, $oldPaths, $targetPaths);
+        $workspace = StorageConfig::findWorkspace($folder->workspace_id);
+        $quotaBytes = $plans['quota_bytes'];
+        $quotaReserved = false;
+        $createdObjects = [];
 
-            $rootCopy = Folder::create([
-                'workspace_id' => $folder->workspace_id,
-                'parent_id' => $targetParent->id,
-                'created_by' => $actor?->id,
-                'name' => $rootName,
-                'slug' => basename($rootCopyPath),
-                'path' => $rootCopyPath,
-                'access_scope' => $folder->access_scope ?? AccessScope::default(),
-                'is_root' => false,
-                'archived_at' => $folder->archived_at,
-            ]);
-            $copies[$folder->id] = $rootCopy;
-
-            foreach ($sourceFolders->slice(1) as $sourceChild) {
-                $parentCopy = $copies[$sourceChild->parent_id];
-                $childSlug = $sourceChild->slug ?: Str::slug($sourceChild->name) ?: 'folder';
-                $childPath = trim($parentCopy->path.'/'.$childSlug, '/');
-
-                $childCopy = Folder::create([
-                    'workspace_id' => $sourceChild->workspace_id,
-                    'parent_id' => $parentCopy->id,
-                    'created_by' => $actor?->id,
-                    'name' => $sourceChild->name,
-                    'slug' => $childSlug,
-                    'path' => $childPath,
-                    'access_scope' => $sourceChild->access_scope ?? AccessScope::default(),
-                    'is_root' => false,
-                    'archived_at' => $sourceChild->archived_at,
-                ]);
-
-                $copies[$sourceChild->id] = $childCopy;
+        try {
+            if ($workspace && $quotaBytes > 0) {
+                $this->storage->increaseUsage($workspace, $quotaBytes);
+                $quotaReserved = true;
             }
 
-            $sourceFolderIds = $sourceFolders->pluck('id');
+            foreach ($plans['objects'] as $object) {
+                if (! $this->files->copy($object['source'], $object['destination'], $object['disk'], $object['disk'])) {
+                    $this->orphans->deleteOrTrack(
+                        $object['disk'],
+                        $object['destination'],
+                        (int) $folder->workspace_id,
+                        $object['size'],
+                        'folder_copy_rollback',
+                    );
+                    throw new RuntimeException('Unable to copy folder media on storage.');
+                }
+                $createdObjects[] = $object;
+            }
 
-            Media::query()
-                ->whereIn('folder_id', $sourceFolderIds)
-                ->whereNull('deleted_at')
-                ->orderBy('id')
-                ->get()
-                ->each(function (Media $sourceMedia) use ($copies, $oldPaths, $actor): void {
-                    $sourceFolder = Folder::findOrFail($sourceMedia->folder_id);
-                    $targetFolder = $copies[$sourceFolder->id];
-                    $newStoredPath = $this->relocateMediaPathForFolder($sourceMedia, $oldPaths[$sourceFolder->id], $targetFolder->path);
+            $rootCopy = DB::transaction(function () use (
+                $folder,
+                $targetParent,
+                $actor,
+                $rootName,
+                $sourceFolders,
+                $targetPaths,
+                $sourceMedia,
+                $plans,
+            ): Folder {
+                $copies = [];
 
-                    if ($sourceMedia->path && ! $this->isExternalPath($sourceMedia->path) && $sourceMedia->disk instanceof Disk) {
-                        $copied = $this->files->copy($sourceMedia->path, $newStoredPath, $sourceMedia->disk, $sourceMedia->disk);
-                        if (! $copied) {
-                            throw new RuntimeException('Unable to copy folder media on storage.');
-                        }
-                    } else {
-                        $newStoredPath = $sourceMedia->path;
-                    }
+                $rootCopy = Folder::create([
+                    'workspace_id' => $folder->workspace_id,
+                    'parent_id' => $targetParent->id,
+                    'created_by' => $actor?->id,
+                    'name' => $rootName,
+                    'slug' => basename($targetPaths[$folder->id]),
+                    'path' => $targetPaths[$folder->id],
+                    'access_scope' => $folder->access_scope ?? AccessScope::default(),
+                    'is_root' => false,
+                    'archived_at' => $folder->archived_at,
+                ]);
+                $copies[$folder->id] = $rootCopy;
 
-                    $mediaCopy = $sourceMedia->replicate([
+                foreach ($sourceFolders->slice(1) as $sourceChild) {
+                    $parentCopy = $copies[$sourceChild->parent_id];
+                    $childCopy = Folder::create([
+                        'workspace_id' => $sourceChild->workspace_id,
+                        'parent_id' => $parentCopy->id,
+                        'created_by' => $actor?->id,
+                        'name' => $sourceChild->name,
+                        'slug' => basename($targetPaths[$sourceChild->id]),
+                        'path' => $targetPaths[$sourceChild->id],
+                        'access_scope' => $sourceChild->access_scope ?? AccessScope::default(),
+                        'is_root' => false,
+                        'archived_at' => $sourceChild->archived_at,
+                    ]);
+
+                    $copies[$sourceChild->id] = $childCopy;
+                }
+
+                foreach ($sourceMedia as $sourceMediaItem) {
+                    $targetFolder = $copies[$sourceMediaItem->folder_id];
+                    $paths = $plans['media_paths'][$sourceMediaItem->id];
+
+                    $mediaCopy = $sourceMediaItem->replicate([
                         'uuid',
+                        'current',
+                        'version_group_uuid',
+                        'version_number',
+                        'previous_version_id',
                         'created_at',
                         'updated_at',
                         'deleted_at',
                     ]);
                     $mediaCopy->forceFill([
+                        'uuid' => (string) Str::uuid(),
                         'folder_id' => $targetFolder->id,
                         'workspace_id' => $targetFolder->workspace_id,
-                        'path' => $newStoredPath,
-                        'uploaded_by' => $actor?->id ?? $sourceMedia->uploaded_by,
-                        'access_scope' => $targetFolder->access_scope ?? $sourceMedia->access_scope ?? AccessScope::default(),
+                        'path' => $paths['path'],
+                        'thumbnail_path' => $paths['thumbnail_path'],
+                        'uploaded_by' => $actor?->id ?? $sourceMediaItem->uploaded_by,
+                        'access_scope' => $targetFolder->access_scope ?? $sourceMediaItem->access_scope ?? AccessScope::default(),
+                        'current' => (bool) $sourceMediaItem->current,
+                        'version_group_uuid' => (string) Str::uuid(),
+                        'version_number' => 1,
+                        'previous_version_id' => null,
                     ]);
                     $mediaCopy->save();
-                });
+                }
 
-            return $rootCopy->refresh();
-        });
+                return $rootCopy;
+            });
+        } catch (\Throwable $exception) {
+            foreach (array_reverse($createdObjects) as $object) {
+                $this->orphans->deleteOrTrack(
+                    $object['disk'],
+                    $object['destination'],
+                    (int) $folder->workspace_id,
+                    $object['size'],
+                    'folder_copy_rollback',
+                );
+            }
+
+            if ($quotaReserved && $workspace) {
+                $this->storage->decreaseUsage($workspace, $quotaBytes);
+            }
+
+            throw $exception;
+        }
+
+        return $rootCopy->refresh();
     }
 
     public function moveFilesToFolder(Model $workspace, array $mediaIds, ?Folder $folder = null): void
@@ -313,7 +369,7 @@ class MediaLibraryService
         Media::withTrashed()
             ->whereIn('folder_id', $folderIds)
             ->get()
-            ->each(fn (Media $media) => app(\Tetranyble\Storage\Domain\FileSystem\MediaService::class)->deleteMediaItem($media));
+            ->each(fn (Media $media) => $this->deletion->delete($media));
 
         $folders
             ->sortByDesc(fn (Folder $item) => strlen($item->path))
@@ -336,19 +392,7 @@ class MediaLibraryService
             ->get();
 
         foreach ($trashed as $media) {
-            $bytes = (int) $media->size;
-            $disk = $media->disk;
-
-            $path = $media->path;
-            if ($path && ! filter_var($path, FILTER_VALIDATE_URL) && $disk) {
-                $this->files->disk($disk)->delete($path);
-            }
-
-            if ($bytes > 0) {
-                $this->storage->decreaseUsage($workspace, $bytes);
-            }
-
-            $media->forceDelete();
+            $this->deletion->delete($media);
         }
     }
 
@@ -442,46 +486,159 @@ class MediaLibraryService
 
         $folders = $this->subtreeFolders($folder, withTrashed: true);
         $oldPaths = $folders->mapWithKeys(fn (Folder $item) => [$item->id => $item->path])->all();
-        $folderIds = $folders->pluck('id');
+        $targetPaths = $folders->mapWithKeys(fn (Folder $item) => [
+            $item->id => $this->replacePathPrefix($item->path, $oldPath, $newPath),
+        ])->all();
+        $mediaItems = Media::withTrashed()
+            ->whereIn('folder_id', $folders->pluck('id'))
+            ->orderBy('id')
+            ->get();
+        $plans = $this->buildFolderMediaCopyPlans($mediaItems, $oldPaths, $targetPaths, countQuota: false);
+        $createdObjects = [];
 
-        return DB::transaction(function () use ($folder, $targetParent, $name, $newPath, $oldPath, $folders, $oldPaths, $folderIds) {
-            $folder->forceFill([
-                'parent_id' => $targetParent?->id,
-                'name' => $name,
-                'slug' => basename($newPath),
-                'path' => $newPath,
-            ])->save();
-
-            foreach ($folders->slice(1) as $child) {
-                $child->path = $this->replacePathPrefix($oldPaths[$child->id], $oldPath, $newPath);
-                $child->save();
+        try {
+            foreach ($plans['objects'] as $object) {
+                if (! $this->files->copy($object['source'], $object['destination'], $object['disk'], $object['disk'])) {
+                    $this->orphans->deleteOrTrack(
+                        $object['disk'],
+                        $object['destination'],
+                        (int) $folder->workspace_id,
+                        $object['size'],
+                        'folder_relocation_rollback',
+                    );
+                    throw new RuntimeException('Unable to relocate folder media on storage.');
+                }
+                $createdObjects[] = $object;
             }
 
-            Media::withTrashed()
-                ->whereIn('folder_id', $folderIds)
-                ->get()
-                ->each(function (Media $media) use ($oldPaths): void {
-                    $currentFolder = Folder::withTrashed()->findOrFail($media->folder_id);
-                    $oldFolderPath = $oldPaths[$media->folder_id] ?? $currentFolder->path;
-                    $newMediaPath = $this->relocateMediaPathForFolder($media, $oldFolderPath, $currentFolder->path);
+            DB::transaction(function () use (
+                $folder,
+                $targetParent,
+                $name,
+                $newPath,
+                $folders,
+                $targetPaths,
+                $mediaItems,
+                $plans,
+            ): void {
+                $folder->forceFill([
+                    'parent_id' => $targetParent?->id,
+                    'name' => $name,
+                    'slug' => basename($newPath),
+                    'path' => $newPath,
+                ])->save();
 
-                    if ($newMediaPath === (string) $media->path) {
-                        return;
+                foreach ($folders->slice(1) as $child) {
+                    $child->path = $targetPaths[$child->id];
+                    $child->save();
+                }
+
+                foreach ($mediaItems as $media) {
+                    $paths = $plans['media_paths'][$media->id];
+                    $media->forceFill([
+                        'path' => $paths['path'],
+                        'thumbnail_path' => $paths['thumbnail_path'],
+                    ])->save();
+                }
+            });
+        } catch (\Throwable $exception) {
+            foreach (array_reverse($createdObjects) as $object) {
+                $this->orphans->deleteOrTrack(
+                    $object['disk'],
+                    $object['destination'],
+                    (int) $folder->workspace_id,
+                    $object['size'],
+                    'folder_relocation_rollback',
+                );
+            }
+
+            throw $exception;
+        }
+
+        foreach ($createdObjects as $object) {
+            $this->orphans->deleteOrTrack(
+                $object['disk'],
+                $object['source'],
+                (int) $folder->workspace_id,
+                $object['size'],
+                'folder_relocation_cleanup',
+            );
+        }
+
+        return $folder->refresh();
+    }
+
+    /**
+     * @param EloquentCollection<int, Media> $mediaItems
+     * @param array<int, string> $oldPaths
+     * @param array<int, string> $targetPaths
+     * @return array{
+     *   objects: array<int, array{source:string,destination:string,disk:Disk,size:int|null}>,
+     *   media_paths: array<int, array{path:string|null,thumbnail_path:string|null}>,
+     *   quota_bytes:int
+     * }
+     */
+    private function buildFolderMediaCopyPlans(
+        EloquentCollection $mediaItems,
+        array $oldPaths,
+        array $targetPaths,
+        bool $countQuota = true,
+    ): array {
+        $objects = [];
+        $mediaPaths = [];
+        $quotaBytes = 0;
+        $destinations = [];
+
+        foreach ($mediaItems as $media) {
+            $oldFolderPath = $oldPaths[$media->folder_id] ?? 'root';
+            $targetFolderPath = $targetPaths[$media->folder_id] ?? $oldFolderPath;
+            $newPath = $this->relocateStoredPathForFolder($media->path, $oldFolderPath, $targetFolderPath);
+            $newThumbnailPath = $this->relocateStoredPathForFolder($media->thumbnail_path, $oldFolderPath, $targetFolderPath);
+
+            $mediaPaths[$media->id] = [
+                'path' => $newPath,
+                'thumbnail_path' => $newThumbnailPath,
+            ];
+
+            if ($media->disk instanceof Disk) {
+                foreach ([
+                    [$media->path, $newPath, $media->size ? (int) $media->size : null, true],
+                    [$media->thumbnail_path, $newThumbnailPath, null, false],
+                ] as [$source, $destination, $size, $isOriginal]) {
+                    if (! is_string($source)
+                        || $source === ''
+                        || ! is_string($destination)
+                        || $destination === ''
+                        || $source === $destination
+                        || $this->isExternalPath($source)) {
+                        continue;
                     }
 
-                    if ($media->path && ! $this->isExternalPath($media->path) && $media->disk instanceof Disk) {
-                        $moved = $this->files->move($media->path, $newMediaPath, $media->disk, $media->disk);
-                        if (! $moved) {
-                            throw new RuntimeException('Unable to move folder media on storage.');
-                        }
+                    $key = $media->disk->value."\0".$destination;
+                    if (isset($destinations[$key])) {
+                        continue;
                     }
+                    $destinations[$key] = true;
 
-                    $media->path = $newMediaPath;
-                    $media->save();
-                });
+                    $objects[] = [
+                        'source' => $source,
+                        'destination' => $destination,
+                        'disk' => $media->disk,
+                        'size' => $size,
+                    ];
 
-            return $folder->refresh();
-        });
+                    if ($countQuota && $isOriginal && is_int($size) && $size > 0) {
+                        $quotaBytes += $size;
+                    }
+                }
+            }
+        }
+
+        return [
+            'objects' => $objects,
+            'media_paths' => $mediaPaths,
+            'quota_bytes' => $quotaBytes,
+        ];
     }
 
     private function subtreeFolders(Folder $folder, bool $withTrashed = false): EloquentCollection
@@ -541,9 +698,18 @@ class MediaLibraryService
 
     private function relocateMediaPathForFolder(Media $media, string $oldFolderPath, string $newFolderPath): string
     {
-        $path = trim((string) $media->path, '/');
+        return (string) $this->relocateStoredPathForFolder($media->path, $oldFolderPath, $newFolderPath);
+    }
+
+    private function relocateStoredPathForFolder(?string $storedPath, string $oldFolderPath, string $newFolderPath): ?string
+    {
+        if (! is_string($storedPath)) {
+            return null;
+        }
+
+        $path = trim($storedPath, '/');
         if ($path === '' || $this->isExternalPath($path)) {
-            return $path;
+            return $storedPath;
         }
 
         $oldRelative = $this->relativeFolderPath($oldFolderPath);
@@ -551,18 +717,29 @@ class MediaLibraryService
         $filename = basename($path);
         $directory = trim(dirname($path), '/');
         $directory = $directory === '.' ? '' : $directory;
-        $baseDirectory = $directory;
 
-        if ($oldRelative !== '') {
-            $suffix = '/'.$oldRelative;
-            if ($directory === $oldRelative) {
-                $baseDirectory = '';
-            } elseif (str_ends_with($directory, $suffix)) {
-                $baseDirectory = trim(substr($directory, 0, -strlen($suffix)), '/');
-            }
+        if ($oldRelative === '') {
+            return trim(implode('/', array_filter([$directory, $newRelative, $filename], fn ($segment) => $segment !== '')), '/');
         }
 
-        return trim(implode('/', array_filter([$baseDirectory, $newRelative, $filename], fn ($segment) => $segment !== '')), '/');
+        // Replace the last complete old-folder segment inside the directory so
+        // derivative subdirectories such as "pdf/.thumbnails" move together
+        // with their owning folder rather than remaining shared with the source.
+        $paddedDirectory = '/'.$directory.'/';
+        $marker = '/'.$oldRelative.'/';
+        $position = strrpos($paddedDirectory, $marker);
+
+        if ($position !== false) {
+            $before = trim(substr($paddedDirectory, 0, $position), '/');
+            $after = trim(substr($paddedDirectory, $position + strlen($marker)), '/');
+
+            return trim(implode('/', array_filter(
+                [$before, $newRelative, $after, $filename],
+                fn ($segment) => $segment !== '',
+            )), '/');
+        }
+
+        return trim(implode('/', array_filter([$directory, $newRelative, $filename], fn ($segment) => $segment !== '')), '/');
     }
 
     private function relativeFolderPath(string $folderPath): string

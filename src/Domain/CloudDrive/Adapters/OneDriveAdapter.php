@@ -3,38 +3,35 @@
 namespace Tetranyble\Storage\Domain\CloudDrive\Adapters;
 
 use Carbon\Carbon;
-use Microsoft\Graph\Graph;
-use Microsoft\Graph\Model\DriveItem;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter;
 use Tetranyble\Storage\Domain\CloudDrive\Contracts\SupportsSameDriveOperations;
 use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
-use Illuminate\Support\Facades\Http;
-use RuntimeException;
 
 /**
- * Wraps microsoftgraph/msgraph-sdk-php (Microsoft Graph v1.0) behind the CloudAdapter contract.
+ * Wraps the Microsoft Graph v1.0 REST API behind the CloudAdapter contract.
  *
- * Token refresh still goes through an HTTP call because the Graph SDK does not
- * manage OAuth state — it is stateless with respect to credentials.
+ * Token refresh uses the Microsoft identity platform OAuth endpoint.
  */
 class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 {
     private const TOKEN_URL = 'https://login.microsoftonline.com/%s/oauth2/v2.0/token';
+
     private const MS_SCOPES = 'https://graph.microsoft.com/Files.ReadWrite.All offline_access';
 
-    private Graph $graph;
+    private const GRAPH_URL = 'https://graph.microsoft.com/v1.0';
 
     public function __construct(
-        private string  $accessToken,
+        private string $accessToken,
         private ?string $refreshToken,
         private ?string $clientId,
         private ?string $clientSecret,
-        private string  $tenantId  = 'common',
+        private string $tenantId = 'common',
         /** '/me/drive' or '/drives/{driveId}' */
-        private string  $drivePath = '/me/drive',
-    ) {
-        $this->graph = $this->buildGraph();
-    }
+        private string $drivePath = '/me/drive',
+    ) {}
 
     public function listFolder(string $folderId = 'root'): array
     {
@@ -42,25 +39,23 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
             ? "{$this->drivePath}/root/children"
             : "{$this->drivePath}/items/{$folderId}/children";
 
-        $select = 'id,name,file,folder,size,webUrl,lastModifiedDateTime,parentReference';
-        $items  = [];
-        $url    = "{$path}?\$select={$select}&\$top=1000";
+        $items = [];
+        $url = self::GRAPH_URL.$path;
+        $query = [
+            '$select' => 'id,name,file,folder,size,webUrl,lastModifiedDateTime,parentReference',
+            '$top' => 1000,
+        ];
 
         // Page through all results
         while ($url) {
-            /** @var DriveItem[] $page */
-            $page = $this->graph
-                ->createRequest('GET', $url)
-                ->setReturnType(DriveItem::class)
-                ->execute();
+            $response = $this->graphRequest('GET', $url, $query);
 
-            foreach ((array) $page as $item) {
+            foreach ($response->json('value', []) as $item) {
                 $items[] = $this->toCloudFile($item);
             }
 
-            // The SDK does not expose @odata.nextLink from collections directly,
-            // so we check via a raw property on the last response.
-            $url = null;
+            $url = $response->json('@odata.nextLink');
+            $query = [];
         }
 
         return $items;
@@ -70,13 +65,12 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     {
         // Request the @microsoft.graph.downloadUrl pre-auth property, then
         // download without the access token — avoids Graph SDK binary-stream quirks.
-        /** @var DriveItem $item */
-        $item = $this->graph
-            ->createRequest('GET', "{$this->drivePath}/items/{$fileId}?\$select=id,@microsoft.graph.downloadUrl")
-            ->setReturnType(DriveItem::class)
-            ->execute();
-
-        $downloadUrl = $item->getProperties()['@microsoft.graph.downloadUrl'] ?? null;
+        $response = $this->graphRequest(
+            'GET',
+            self::GRAPH_URL."{$this->drivePath}/items/{$fileId}",
+            ['$select' => 'id,@microsoft.graph.downloadUrl'],
+        );
+        $downloadUrl = $response->json()['@microsoft.graph.downloadUrl'] ?? null;
 
         if (! $downloadUrl) {
             throw new RuntimeException("Could not obtain download URL for OneDrive item {$fileId}.");
@@ -98,27 +92,23 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
             ? "{$this->drivePath}/root:/{$encodedName}:/content"
             : "{$this->drivePath}/items/{$folderId}:/{$encodedName}:/content";
 
-        /** @var DriveItem $item */
-        $item = $this->graph
-            ->createRequest('PUT', $path.'?@microsoft.graph.conflictBehavior=rename&$select=id,name,file,size,webUrl,lastModifiedDateTime,parentReference')
-            ->addHeaders(['Content-Type' => $mimeType])
-            ->attachBody($binary)
-            ->setReturnType(DriveItem::class)
-            ->execute();
+        $response = Http::withToken($this->accessToken)
+            ->acceptJson()
+            ->withBody($binary, $mimeType)
+            ->put(self::GRAPH_URL.$path.'?@microsoft.graph.conflictBehavior=rename&$select=id,name,file,size,webUrl,lastModifiedDateTime,parentReference');
+        $this->ensureGraphRequestSucceeded($response, 'upload file');
 
-        return $this->toCloudFile($item);
+        return $this->toCloudFile($response->json());
     }
 
     public function deleteFile(string $fileId): void
     {
-        try {
-            $this->graph
-                ->createRequest('DELETE', "{$this->drivePath}/items/{$fileId}")
-                ->execute();
-        } catch (\Microsoft\Graph\Exception\GraphException $e) {
-            if ($e->getCode() !== 404) {
-                throw new RuntimeException("OneDrive delete failed: {$e->getMessage()}", 0, $e);
-            }
+        $response = Http::withToken($this->accessToken)
+            ->acceptJson()
+            ->delete(self::GRAPH_URL."{$this->drivePath}/items/{$fileId}");
+
+        if ($response->status() !== 404) {
+            $this->ensureGraphRequestSucceeded($response, 'delete file');
         }
     }
 
@@ -128,31 +118,28 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
             ? "{$this->drivePath}/root/children"
             : "{$this->drivePath}/items/{$parentId}/children";
 
-        /** @var DriveItem $item */
-        $item = $this->graph
-            ->createRequest('POST', $path)
-            ->attachBody([
-                'name'                              => $name,
-                'folder'                            => new \stdClass(),
+        $response = $this->graphRequest(
+            'POST',
+            self::GRAPH_URL.$path,
+            [
+                'name' => $name,
+                'folder' => new \stdClass,
                 '@microsoft.graph.conflictBehavior' => 'rename',
-            ])
-            ->setReturnType(DriveItem::class)
-            ->execute();
+            ],
+        );
 
-        return $this->toCloudFile($item);
+        return $this->toCloudFile($response->json());
     }
 
     public function getMetadata(string $fileId): CloudFile
     {
-        $select = 'id,name,file,folder,size,webUrl,lastModifiedDateTime,parentReference';
+        $response = $this->graphRequest(
+            'GET',
+            self::GRAPH_URL."{$this->drivePath}/items/{$fileId}",
+            ['$select' => 'id,name,file,folder,size,webUrl,lastModifiedDateTime,parentReference'],
+        );
 
-        /** @var DriveItem $item */
-        $item = $this->graph
-            ->createRequest('GET', "{$this->drivePath}/items/{$fileId}?\$select={$select}")
-            ->setReturnType(DriveItem::class)
-            ->execute();
-
-        return $this->toCloudFile($item);
+        return $this->toCloudFile($response->json());
     }
 
     public function copyFileSameDrive(string $fileId, string $targetFolderId, string $name): CloudFile
@@ -160,8 +147,8 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
         // OneDrive's native /copy is asynchronous (returns 202). To keep the API
         // synchronous we download+re-upload within the same drive. For large files
         // callers should instead enqueue a background job.
-        $binary   = $this->getFileBinary($fileId);
-        $meta     = $this->getMetadata($fileId);
+        $binary = $this->getFileBinary($fileId);
+        $meta = $this->getMetadata($fileId);
         $mimeType = $meta->mimeType ?? 'application/octet-stream';
 
         return $this->putFile($targetFolderId, $name, $binary, $mimeType);
@@ -169,14 +156,13 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 
     public function moveFileSameDrive(string $fileId, string $targetFolderId, string $name): CloudFile
     {
-        /** @var DriveItem $item */
-        $item = $this->graph
-            ->createRequest('PATCH', "{$this->drivePath}/items/{$fileId}")
-            ->attachBody(['parentReference' => ['id' => $targetFolderId], 'name' => $name])
-            ->setReturnType(DriveItem::class)
-            ->execute();
+        $response = $this->graphRequest(
+            'PATCH',
+            self::GRAPH_URL."{$this->drivePath}/items/{$fileId}",
+            ['parentReference' => ['id' => $targetFolderId], 'name' => $name],
+        );
 
-        return $this->toCloudFile($item);
+        return $this->toCloudFile($response->json());
     }
 
     public function refreshToken(): array
@@ -188,11 +174,11 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
         $url = sprintf(self::TOKEN_URL, $this->tenantId);
 
         $response = Http::asForm()->post($url, [
-            'client_id'     => $this->clientId,
+            'client_id' => $this->clientId,
             'client_secret' => $this->clientSecret,
             'refresh_token' => $this->refreshToken,
-            'grant_type'    => 'refresh_token',
-            'scope'         => self::MS_SCOPES,
+            'grant_type' => 'refresh_token',
+            'scope' => self::MS_SCOPES,
         ]);
 
         if ($response->failed()) {
@@ -206,8 +192,6 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
             $this->refreshToken = $data['refresh_token'];
         }
 
-        $this->graph = $this->buildGraph();
-
         $result = ['access_token' => $data['access_token'], 'expires_at' => Carbon::now()->addSeconds((int) ($data['expires_in'] ?? 3600))];
         if (isset($data['refresh_token'])) {
             $result['refresh_token'] = $data['refresh_token'];
@@ -216,36 +200,48 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
         return $result;
     }
 
-    private function buildGraph(): Graph
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function graphRequest(string $method, string $url, array $data = []): Response
     {
-        $graph = new Graph();
-        $graph->setAccessToken($this->accessToken);
+        $request = Http::withToken($this->accessToken)->acceptJson();
+        $response = strtoupper($method) === 'GET'
+            ? $request->get($url, $data)
+            : $request->send($method, $url, ['json' => $data]);
 
-        return $graph;
+        $this->ensureGraphRequestSucceeded($response, strtolower($method).' request');
+
+        return $response;
     }
 
-    private function toCloudFile(DriveItem $item): CloudFile
+    private function ensureGraphRequestSucceeded(Response $response, string $operation): void
     {
-        $isFolder    = $item->getFolder() !== null;
-        $size        = $isFolder ? null : $item->getSize();
-        $file        = $item->getFile();
-        $mimeType    = $file ? $file->getMimeType() : null;
-        $props       = $item->getProperties();
-        $parentId    = $item->getParentReference() ? $item->getParentReference()->getId() : null;
-        $thumbnailUrl = $props['thumbnails'][0]['medium']['url'] ?? null;
+        if ($response->failed()) {
+            throw new RuntimeException("OneDrive {$operation} failed: HTTP {$response->status()} {$response->body()}");
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function toCloudFile(array $item): CloudFile
+    {
+        $isFolder = array_key_exists('folder', $item);
+        $size = $isFolder ? null : ($item['size'] ?? null);
 
         return new CloudFile(
-            id:           $item->getId(),
-            name:         $item->getName(),
-            isFolder:     $isFolder,
-            size:         $size !== null ? (int) $size : null,
-            mimeType:     $mimeType,
-            webViewLink:  $item->getWebUrl(),
-            thumbnailUrl: $thumbnailUrl,
-            modifiedAt:   $item->getLastModifiedDateTime()
-                ? Carbon::parse($item->getLastModifiedDateTime())
+            id: (string) $item['id'],
+            name: (string) $item['name'],
+            isFolder: $isFolder,
+            size: $size !== null ? (int) $size : null,
+            mimeType: $item['file']['mimeType'] ?? null,
+            webViewLink: $item['webUrl'] ?? null,
+            thumbnailUrl: $item['thumbnails'][0]['medium']['url'] ?? null,
+            modifiedAt: isset($item['lastModifiedDateTime'])
+                ? Carbon::parse($item['lastModifiedDateTime'])
                 : null,
-            parentId:     $parentId,
+            parentId: $item['parentReference']['id'] ?? null,
         );
     }
 }

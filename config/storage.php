@@ -47,6 +47,16 @@ return [
             'disk' => \Tetranyble\Storage\Domain\FileSystem\Enums\Disk::PUBLIC->value,
         ],
     ],
+    'uploads' => [
+        // Hard ceiling for a completed upload. Chunked sessions validate declared total size against this value.
+        'max_size' => (int) env('STORAGE_UPLOAD_MAX_SIZE', 50 * 1024 * 1024),
+        // Per-request ceiling for an individual chunk.
+        'max_chunk_size' => (int) env('STORAGE_UPLOAD_MAX_CHUNK_SIZE', 10 * 1024 * 1024),
+    ],
+    'reads' => [
+        // Protect accidental in-memory reads while keeping HTTP fetching out of FileSystem::get().
+        'max_size' => (int) env('STORAGE_READ_MAX_SIZE', 50 * 1024 * 1024),
+    ],
     'image_metadata' => [
         'max_bytes' => 15 * 1024 * 1024,
     ],

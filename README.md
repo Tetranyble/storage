@@ -7,6 +7,7 @@ A modular, multi-workspace storage and media management package for Laravel. Wor
 ## Table of Contents
 
 - [Requirements](#requirements)
+- [Provider Packages](#provider-packages)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Workspace](#workspace)
@@ -22,6 +23,7 @@ A modular, multi-workspace storage and media management package for Laravel. Wor
 - [Sharing](#sharing)
 - [Comments](#comments)
 - [Storage Quota](#storage-quota)
+- [Recovery & Reconciliation](#recovery--reconciliation)
 - [Connected Drives](#connected-drives)
   - [Google Drive](#google-drive)
   - [Microsoft OneDrive](#microsoft-onedrive)
@@ -44,15 +46,25 @@ A modular, multi-workspace storage and media management package for Laravel. Wor
 | Dependency | Version |
 |---|---|
 | PHP | ^8.2 |
-| Laravel | ^12.0 |
-| `google/apiclient` | ^2.15 |
-| `microsoft/microsoft-graph` | ^1.0 |
-| `spatie/dropbox-api` | ^1.0 |
-| `league/flysystem` | ^3.0 |
-| `league/flysystem-aws-s3-v3` | ^3.0 |
-| `league/flysystem-azure-blob-storage` | ^3.0 |
-| `league/flysystem-google-cloud-storage` | ^3.0 |
-| `cloudinary/cloudinary_php` | ^2.0 |
+| Laravel components | ^9.0 \| ^10.0 \| ^11.0 \| ^12.0 \| ^13.0 |
+| `league/flysystem` | ^3.28 |
+
+## Provider Packages
+
+Cloud-provider SDKs are optional. Install only those used by the host application.
+
+| Provider | Package |
+|---|---|
+| Local disk | None |
+| Microsoft OneDrive | None; uses Laravel's HTTP client |
+| Google Drive | `google/apiclient:^2.15` |
+| Dropbox | `spatie/dropbox-api:^1.0` |
+| Amazon S3 | `league/flysystem-aws-s3-v3:^3.28` |
+| Azure Blob Storage | `azure-oss/storage-blob-flysystem:^2.2` |
+| Google Cloud Storage | `league/flysystem-google-cloud-storage:^3.28` |
+| Cloudinary | `cloudinary/cloudinary_php:^2.0` |
+
+See [Connected Drives](docs/CONNECTED_DRIVES.md) for provider installation, OAuth callbacks, credential formats, security guidance, troubleshooting, and legacy upgrade instructions.
 
 ---
 
@@ -60,6 +72,12 @@ A modular, multi-workspace storage and media management package for Laravel. Wor
 
 ```bash
 composer require tetranyble/storage
+```
+
+Install any optional provider adapters needed by the application. For example:
+
+```bash
+composer require azure-oss/storage-blob-flysystem:^2.2
 ```
 
 Publish and run the core storage migrations:
@@ -119,6 +137,15 @@ return [
     'activities' => [
         'enabled' => env('STORAGE_ACTIVITIES_ENABLED', false),
         'load_migrations' => env('STORAGE_ACTIVITY_MIGRATIONS', false),
+    ],
+
+    'uploads' => [
+        'max_size' => (int) env('STORAGE_UPLOAD_MAX_SIZE', 50 * 1024 * 1024),
+        'max_chunk_size' => (int) env('STORAGE_UPLOAD_MAX_CHUNK_SIZE', 10 * 1024 * 1024),
+    ],
+
+    'reads' => [
+        'max_size' => (int) env('STORAGE_READ_MAX_SIZE', 50 * 1024 * 1024),
     ],
 
     'workspace' => [
@@ -624,9 +651,35 @@ $storage->assertCanStore($workspace, bytes: $fileSize);
 $storage->increaseUsage($workspace, bytes: $fileSize);
 $storage->decreaseUsage($workspace, bytes: $fileSize);
 
-// Recompute from actual Media records (use as a scheduled reconciliation job)
+// Recompute from authoritative Media records. Soft-deleted items in Trash
+// are included because their physical objects are still package-owned.
 $storage->recalculateUsage($workspace);
 ```
+
+---
+
+## Recovery & Reconciliation
+
+Object storage cannot participate in the same SQL transaction as Eloquent. The package therefore records failed post-commit/rollback cleanup in `storage_orphans` and retries it safely later.
+
+Retry pending physical cleanup:
+
+```bash
+php artisan storage:cleanup-orphans
+php artisan storage:cleanup-orphans --limit=500
+```
+
+Recompute quota counters from authoritative media records (including Trash):
+
+```bash
+# One workspace
+php artisan storage:reconcile-usage 42
+
+# Every workspace
+php artisan storage:reconcile-usage
+```
+
+These commands are safe to schedule. A missing orphan object is treated as already cleaned, and cleanup failures remain registered for a later retry. External URL attachments are excluded from package-owned storage usage.
 
 ---
 
@@ -648,11 +701,19 @@ use Tetranyble\Storage\Enums\CloudProvider;
 $oauth = app(OAuthService::class);
 $drives = app(ConnectedDriveService::class);
 
-// 1. Redirect the user to Google's consent screen
-$authUrl = $oauth->getAuthorizationUrl(CloudProvider::GOOGLE_DRIVE);
+// 1. Generate and persist a CSRF state value, then redirect the user.
+$state = \Illuminate\Support\Str::random(40);
+session(['google_drive_oauth_state' => $state]);
+$authUrl = $oauth->buildAuthUrl(CloudProvider::GOOGLE_DRIVE, $state);
 return redirect($authUrl);
 
-// 2. After redirect back, exchange the code for tokens
+// 2. In the callback, validate and consume the state before exchanging the code.
+$expectedState = (string) session()->pull('google_drive_oauth_state');
+$actualState = (string) $request->input('state');
+abort_unless(
+    $expectedState !== '' && hash_equals($expectedState, $actualState),
+    403,
+);
 $tokenData = $oauth->exchangeCode(CloudProvider::GOOGLE_DRIVE, $request->input('code'));
 
 // 3. Persist the connected drive
@@ -661,24 +722,34 @@ $drive = $drives->connectOAuth($workspace, CloudProvider::GOOGLE_DRIVE, $tokenDa
 
 ### Microsoft OneDrive
 
+OneDrive uses Laravel's HTTP client to call Microsoft Graph directly; no Microsoft Graph PHP SDK is required.
+
 ```php
 // Same OAuth flow as Google Drive, different provider
-$authUrl = $oauth->getAuthorizationUrl(CloudProvider::ONEDRIVE);
+$state = \Illuminate\Support\Str::random(40);
+session(['onedrive_oauth_state' => $state]);
+$authUrl = $oauth->buildAuthUrl(CloudProvider::ONEDRIVE, $state);
 
-// After callback:
+// After validating and consuming the state in the callback:
 $tokenData = $oauth->exchangeCode(CloudProvider::ONEDRIVE, $request->input('code'));
 $drive = $drives->connectOAuth($workspace, CloudProvider::ONEDRIVE, $tokenData, name: 'Work OneDrive');
 ```
 
+The default Microsoft Graph path is `/me/drive`. Tenant selection, scopes, alternate drive IDs, and a complete callback example are covered in the [Connected Drives guide](docs/CONNECTED_DRIVES.md#microsoft-onedrive).
+
 ### Dropbox
 
 ```php
-// Dropbox also uses OAuth — same flow
-$authUrl = $oauth->getAuthorizationUrl(CloudProvider::DROPBOX);
-
-$tokenData = $oauth->exchangeCode(CloudProvider::DROPBOX, $request->input('code'));
+// Obtain Dropbox tokens through the host application's OAuth client, then persist them.
+$tokenData = [
+    'access_token' => $dropboxAccessToken,
+    'refresh_token' => $dropboxRefreshToken,
+    'expires_at' => $expiresAt,
+];
 $drive = $drives->connectOAuth($workspace, CloudProvider::DROPBOX, $tokenData, name: 'Dropbox');
 ```
+
+The built-in `OAuthService` currently generates authorization URLs and exchanges codes for Google Drive and OneDrive. The host application owns the Dropbox authorization-code exchange.
 
 ### Amazon S3
 
@@ -696,6 +767,8 @@ $drive = $drives->connectS3($workspace, credentials: [
 **S3-compatible providers** (Cloudflare R2, DigitalOcean Spaces, Backblaze B2, MinIO) use the same `connectS3()` — just pass the appropriate `endpoint`.
 
 ### Azure Blob Storage
+
+Install `azure-oss/storage-blob-flysystem:^2.2` before enabling this provider. The container must already exist.
 
 ```php
 // Option A: full connection string

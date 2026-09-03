@@ -18,20 +18,27 @@ use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\MediaUploader;
 use Tetranyble\Storage\Domain\FileSystem\FileSystem;
 use Tetranyble\Storage\Domain\FileSystem\MediaService;
+use Tetranyble\Storage\Domain\FileSystem\RemoteMediaDownloadService;
 use Tetranyble\Storage\Domain\FileSystem\ResumableUploadService;
 use Tetranyble\Storage\Domain\FileSystem\SafeRemoteUrlValidator;
 use Tetranyble\Storage\Domain\CloudDrive\ConnectedDriveService;
 use Tetranyble\Storage\Domain\CloudDrive\DownloadService;
 use Tetranyble\Storage\Domain\CloudDrive\OAuthService;
 use Tetranyble\Storage\Domain\FileSystem\StorageService;
+use Tetranyble\Storage\Domain\FileSystem\StorageLifecycleService;
+use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
 use Tetranyble\Storage\Domain\Media\AccessControlService;
 use Tetranyble\Storage\Domain\Media\AccessControlTransferAuthorizer;
 use Tetranyble\Storage\Domain\Media\MediaStorageTransferService;
 use Tetranyble\Storage\Domain\Media\CommentService;
+use Tetranyble\Storage\Domain\Media\CurrentMediaSelectionService;
+use Tetranyble\Storage\Domain\Media\MediaDeletionService;
+use Tetranyble\Storage\Domain\Media\MediaRelocationService;
 use Tetranyble\Storage\Domain\Media\MediaPostProcessor;
 use Tetranyble\Storage\Domain\Media\MediaShareService;
 use Tetranyble\Storage\Domain\Media\MediaVersioningService;
 use Tetranyble\Storage\Domain\Media\WorkspaceFileManagerService;
+use Tetranyble\Storage\Domain\Media\WorkspaceFileQueryService;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -52,6 +59,9 @@ class StorageServiceProvider extends ServiceProvider
             $this->app->bind(RemoteUrlValidator::class, SafeRemoteUrlValidator::class);
         }
         $this->app->bind(ResumableUploadManager::class, ResumableUploadService::class);
+        $this->app->bind(RemoteMediaDownloadService::class);
+        $this->app->bind(StorageOrphanService::class);
+        $this->app->bind(StorageLifecycleService::class);
         if (! $this->app->bound(ActivityLogger::class)) {
             $this->app->bind(ActivityLogger::class, function ($app) {
                 $logger = (bool) $app['config']->get('tetranyble-storage.activities.enabled', false)
@@ -103,16 +113,20 @@ class StorageServiceProvider extends ServiceProvider
 
         $this->app->bind(MediaPostProcessor::class, fn ($app) => new MediaPostProcessor(
             $app->make(FileSystemContract::class),
+            $app->make(StorageOrphanService::class),
         ));
 
         $this->app->bind(MediaVersioningService::class, fn ($app) => new MediaVersioningService(
-            $app->make(FileSystemContract::class),
-            $app->make(StorageService::class),
+            $app->make(MediaDeletionService::class),
             $app->make(ActivityLogger::class),
             $app->make(ActivityFeed::class),
         ));
 
         $this->app->bind(MediaShareService::class);
+        $this->app->bind(MediaDeletionService::class);
+        $this->app->bind(MediaRelocationService::class);
+        $this->app->bind(CurrentMediaSelectionService::class);
+        $this->app->bind(WorkspaceFileQueryService::class);
 
         $this->app->bind(WorkspaceFileManagerService::class);
         $this->app->bind(MediaStorageTransferService::class);
@@ -162,6 +176,8 @@ class StorageServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Tetranyble\Storage\Console\PurgeTemporaryMediaCommand::class,
+                \Tetranyble\Storage\Console\CleanupStorageOrphansCommand::class,
+                \Tetranyble\Storage\Console\ReconcileStorageUsageCommand::class,
             ]);
         }
     }

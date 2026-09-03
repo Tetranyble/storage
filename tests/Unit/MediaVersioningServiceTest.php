@@ -9,6 +9,7 @@ use Tetranyble\Storage\Enums\MediaStatus;
 use Tetranyble\Storage\Models\Media;
 use Tetranyble\Storage\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -72,7 +73,7 @@ class MediaVersioningServiceTest extends PackageTestCase
         $this->assertNull($previousVersionId);
     }
 
-    public function test_prepare_context_bumps_version_and_marks_replaced_as_not_current(): void
+    public function test_prepare_context_reserves_version_without_changing_current_media(): void
     {
         $groupUuid = (string) Str::uuid();
         $existing = $this->makeMedia([
@@ -88,7 +89,27 @@ class MediaVersioningServiceTest extends PackageTestCase
         $this->assertSame($existing->id, $previousId);
 
         $existing->refresh();
-        $this->assertFalse((bool) $existing->current);
+        $this->assertTrue((bool) $existing->current);
+    }
+
+    public function test_repeated_prepare_context_allocates_distinct_version_numbers_from_stale_media(): void
+    {
+        $groupUuid = (string) Str::uuid();
+        $existing = $this->makeMedia([
+            'version_group_uuid' => $groupUuid,
+            'version_number' => 1,
+            'current' => true,
+        ]);
+
+        $requestA = $existing->fresh();
+        $requestB = $existing->fresh();
+
+        [, $versionA] = $this->service->prepareContext($requestA);
+        [, $versionB] = $this->service->prepareContext($requestB);
+
+        $this->assertSame(2, $versionA);
+        $this->assertSame(3, $versionB);
+        $this->assertTrue((bool) $existing->fresh()->current);
     }
 
     // ------------------------------------------------------------------
@@ -118,6 +139,44 @@ class MediaVersioningServiceTest extends PackageTestCase
 
         $media->refresh();
         $this->assertFalse((bool) $media->current);
+    }
+
+    public function test_apply_context_serializes_current_version_changes(): void
+    {
+        $groupUuid = (string) Str::uuid();
+        $v1 = $this->makeMedia([
+            'version_group_uuid' => $groupUuid,
+            'version_number' => 1,
+            'current' => true,
+        ]);
+
+        $context2 = $this->service->prepareContext($v1->fresh());
+        $context3 = $this->service->prepareContext($v1->fresh());
+        $v2 = $this->makeMedia();
+        $v3 = $this->makeMedia();
+
+        $this->service->applyContext($v2, $context2, true);
+        $this->service->applyContext($v3, $context3, true);
+
+        $this->assertFalse((bool) $v1->fresh()->current);
+        $this->assertFalse((bool) $v2->fresh()->current);
+        $this->assertTrue((bool) $v3->fresh()->current);
+        $this->assertSame(1, Media::query()->where('version_group_uuid', $groupUuid)->where('current', true)->count());
+        $this->assertSame([1, 2, 3], Media::query()->where('version_group_uuid', $groupUuid)->orderBy('version_number')->pluck('version_number')->all());
+    }
+
+    public function test_database_rejects_duplicate_version_numbers_within_a_group(): void
+    {
+        $groupUuid = (string) Str::uuid();
+        $this->makeMedia(['version_group_uuid' => $groupUuid, 'version_number' => 1]);
+
+        $duplicate = $this->makeMedia();
+
+        $this->expectException(QueryException::class);
+        $duplicate->forceFill([
+            'version_group_uuid' => $groupUuid,
+            'version_number' => 1,
+        ])->save();
     }
 
     // ------------------------------------------------------------------

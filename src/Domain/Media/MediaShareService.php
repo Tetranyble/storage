@@ -2,14 +2,14 @@
 
 namespace Tetranyble\Storage\Domain\Media;
 
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\MediaShare;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Models\Folder;
+use Tetranyble\Storage\Models\Media;
+use Tetranyble\Storage\Models\MediaShare;
 
 class MediaShareService
 {
@@ -63,9 +63,58 @@ class MediaShareService
         }
     }
 
+    public function validateDownloadAccess(MediaShare $share, ?string $password = null): void
+    {
+        $this->validateAccess($share, $password);
+
+        if ($share->access_level !== 'download') {
+            abort(403, 'This share does not allow downloads.');
+        }
+    }
+
+    /**
+     * Validate and atomically consume one download slot.
+     *
+     * The limit check and increment happen in a single UPDATE statement so two
+     * concurrent requests cannot both consume the final allowed download.
+     */
+    public function consumeDownloadAccess(MediaShare $share, ?string $password = null): void
+    {
+        $this->validateDownloadAccess($share, $password);
+
+        if ($this->consumeDownloadSlot($share, requireDownloadAccess: true)) {
+            return;
+        }
+
+        // The row changed between validation and consumption. Refresh and surface
+        // the actual reason using the same public semantics as normal validation.
+        $share->refresh();
+        $this->validateDownloadAccess($share, $password);
+
+        throw new RuntimeException('Unable to consume share download slot. Retry the request.');
+    }
+
+    /**
+     * Backward-compatible counter mutation for callers that already validated the
+     * share separately. The download ceiling is still enforced atomically.
+     */
     public function incrementDownloads(MediaShare $share): void
     {
-        $share->increment('downloads_count');
+        if ($this->consumeDownloadSlot($share)) {
+            return;
+        }
+
+        $share->refresh();
+
+        if ($share->isExpired()) {
+            abort(410, 'Link expired');
+        }
+
+        if ($share->hasReachedDownloadsLimit()) {
+            abort(429, 'Download limit reached');
+        }
+
+        throw new RuntimeException('Unable to increment share download count. Retry the request.');
     }
 
     public function urlFor(MediaShare $share, bool $absolute = true): string
@@ -77,6 +126,38 @@ class MediaShareService
         }
 
         return route($routeName, ['token' => $share->token], $absolute);
+    }
+
+    private function consumeDownloadSlot(MediaShare $share, bool $requireDownloadAccess = false): bool
+    {
+        $query = MediaShare::query()
+            ->whereKey($share->getKey())
+            ->where('requires_password', (bool) $share->requires_password)
+            ->when(
+                $share->requires_password,
+                fn ($query) => $query->where('password_hash', $share->password_hash),
+            )
+            ->when(
+                $requireDownloadAccess,
+                fn ($query) => $query->where('access_level', 'download'),
+            )
+            ->where(function ($query): void {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('max_downloads')
+                    ->orWhereColumn('downloads_count', '<', 'max_downloads');
+            });
+
+        $updated = $query->increment('downloads_count');
+
+        if ($updated === 1) {
+            $share->refresh();
+
+            return true;
+        }
+
+        return false;
     }
 
     private function createShare(

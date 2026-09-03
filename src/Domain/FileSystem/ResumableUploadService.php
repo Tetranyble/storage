@@ -16,6 +16,7 @@ use Tetranyble\Storage\Enums\MediaRevisionEventType;
 use Tetranyble\Storage\Models\Media;
 use Tetranyble\Storage\Models\UploadSession;
 use Tetranyble\Storage\Models\UploadSessionChunk;
+use Tetranyble\Storage\Domain\Media\MediaDeletionService;
 use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -28,6 +29,8 @@ class ResumableUploadService implements ResumableUploadManager
     public function __construct(
         private readonly FileSystemContract $files,
         private readonly MediaService $mediaService,
+        private readonly MediaDeletionService $deletion,
+        private readonly StorageOrphanService $orphans,
     ) {}
 
     public function startSession(UploadSessionOptions $options): UploadSession
@@ -118,19 +121,37 @@ class ResumableUploadService implements ResumableUploadManager
         }
 
         $disk = $this->diskForSession($session);
-        $path = $this->files->disk($disk)->storeAs(
-            $chunk,
-            $this->chunkFilename($chunkNumber),
-            $this->chunkDirectory($session)
-        );
+        $chunkFilename = $this->chunkFilename($chunkNumber);
+        $expectedPath = trim($this->chunkDirectory($session).'/'.$chunkFilename, '/');
+        $path = null;
 
-        $session->chunks()->create([
-            'chunk_number' => $chunkNumber,
-            'size' => $size,
-            'checksum' => $checksum,
-            'path' => $path,
-            'uploaded_at' => now(),
-        ]);
+        try {
+            $path = $this->files->disk($disk)->storeAs(
+                $chunk,
+                $chunkFilename,
+                $this->chunkDirectory($session)
+            );
+
+            DB::transaction(function () use ($session, $chunkNumber, $size, $checksum, $path): void {
+                $session->chunks()->create([
+                    'chunk_number' => $chunkNumber,
+                    'size' => $size,
+                    'checksum' => $checksum,
+                    'path' => $path,
+                    'uploaded_at' => now(),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            $this->orphans->deleteOrTrack(
+                $disk,
+                is_string($path) && $path !== '' ? $path : $expectedPath,
+                $session->workspace_id ? (int) $session->workspace_id : null,
+                $size > 0 ? $size : null,
+                'upload_chunk_rollback',
+            );
+
+            throw $exception;
+        }
 
         return $this->syncSessionProgress($session);
     }
@@ -256,12 +277,17 @@ class ResumableUploadService implements ResumableUploadManager
 
             $media = $this->mediaService->finalizeChunkedUpload($uploadedFile, $options);
 
-            $session->forceFill([
-                'status' => UploadSessionStatus::FINALIZED,
-                'media_id' => $media->id,
-                'finalized_at' => now(),
-                'locked_at' => null,
-            ])->save();
+            // Linking the committed Media record to its upload session is itself
+            // authoritative DB state. Wrap it so an observer/DB failure cannot
+            // leave a half-persisted session link.
+            DB::transaction(function () use ($session, $media): void {
+                $session->forceFill([
+                    'status' => UploadSessionStatus::FINALIZED,
+                    'media_id' => $media->id,
+                    'finalized_at' => now(),
+                    'locked_at' => null,
+                ])->save();
+            });
 
             $this->purgeChunkArtifacts($session);
 
@@ -269,11 +295,29 @@ class ResumableUploadService implements ResumableUploadManager
         } catch (\Throwable $exception) {
             $session->refresh();
 
+            if (isset($media) && $media instanceof Media) {
+                if ($session->status === UploadSessionStatus::FINALIZED
+                    && (int) $session->media_id === (int) $media->id) {
+                    // The link is durable; only post-commit cleanup failed. Keep
+                    // the completed media and make chunk cleanup retriable.
+                    $this->purgeChunkArtifacts($session);
+
+                    return $media->refresh();
+                }
+
+                // Media persistence succeeded but the session link did not. Delete
+                // the newly created media through the same compensated lifecycle
+                // used by normal permanent deletion, then allow a retry.
+                $this->deletion->delete($media->fresh() ?? $media);
+            }
+
             if ($session->status !== UploadSessionStatus::CONFLICTED) {
-                $session->forceFill([
-                    'status' => $session->received_chunks > 0 ? UploadSessionStatus::UPLOADING : UploadSessionStatus::PENDING,
-                    'locked_at' => null,
-                ])->save();
+                DB::transaction(function () use ($session): void {
+                    $session->forceFill([
+                        'status' => $session->received_chunks > 0 ? UploadSessionStatus::UPLOADING : UploadSessionStatus::PENDING,
+                        'locked_at' => null,
+                    ])->save();
+                });
             }
 
             throw $exception;
@@ -296,13 +340,17 @@ class ResumableUploadService implements ResumableUploadManager
             );
         }
 
-        $this->purgeChunkArtifacts($session);
+        // Persist cancellation before deleting physical chunks. If the DB update
+        // fails, the resumable session remains usable and its chunks stay intact.
+        DB::transaction(function () use ($session): void {
+            $session->forceFill([
+                'status' => UploadSessionStatus::CANCELLED,
+                'cancelled_at' => now(),
+                'locked_at' => null,
+            ])->save();
+        });
 
-        $session->forceFill([
-            'status' => UploadSessionStatus::CANCELLED,
-            'cancelled_at' => now(),
-            'locked_at' => null,
-        ])->save();
+        $this->purgeChunkArtifacts($session);
     }
 
     private function syncSessionProgress(UploadSession $session): UploadSession
@@ -426,10 +474,14 @@ class ResumableUploadService implements ResumableUploadManager
     private function assertSessionNotExpired(UploadSession $session): void
     {
         if ($session->session_expires_at && $session->session_expires_at->isPast()) {
-            $session->forceFill([
-                'status' => UploadSessionStatus::EXPIRED,
-                'locked_at' => null,
-            ])->save();
+            DB::transaction(function () use ($session): void {
+                $session->forceFill([
+                    'status' => UploadSessionStatus::EXPIRED,
+                    'locked_at' => null,
+                ])->save();
+            });
+
+            $this->purgeChunkArtifacts($session);
 
             throw new UploadSessionConflictException(
                 'Upload session has expired.',
@@ -491,11 +543,23 @@ class ResumableUploadService implements ResumableUploadManager
 
         foreach ($session->chunks()->get() as $chunk) {
             if ($chunk->path) {
-                $this->files->delete($chunk->path, $disk);
+                $this->orphans->deleteOrTrack(
+                    $disk,
+                    (string) $chunk->path,
+                    $session->workspace_id ? (int) $session->workspace_id : null,
+                    $chunk->size ? (int) $chunk->size : null,
+                    'upload_chunk_cleanup',
+                );
             }
         }
 
-        $this->files->deleteDirectory($this->sessionDirectory($session), $disk);
+        // Directory markers have no quota/ownership semantics and most object
+        // stores do not represent them at all. Their cleanup is best effort.
+        try {
+            $this->files->deleteDirectory($this->sessionDirectory($session), $disk);
+        } catch (\Throwable) {
+            // Individual chunk objects are already removed or durably registered.
+        }
     }
 
     private function chunkDirectory(UploadSession $session): string

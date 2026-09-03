@@ -2,7 +2,7 @@
 
 namespace Tetranyble\Storage\Console;
 
-use Tetranyble\Storage\Domain\FileSystem\MediaService;
+use Tetranyble\Storage\Domain\Media\MediaDeletionService;
 use Tetranyble\Storage\Models\Media;
 use Illuminate\Console\Command;
 
@@ -12,7 +12,7 @@ class PurgeTemporaryMediaCommand extends Command
 
     protected $description = 'Purge expired temporary media files';
 
-    public function handle(MediaService $mediaService): int
+    public function handle(MediaDeletionService $deletion): int
     {
         $totalPurged = 0;
 
@@ -20,9 +20,9 @@ class PurgeTemporaryMediaCommand extends Command
             ->whereNotNull('temporary_expires_at')
             ->where('temporary_expires_at', '<=', now())
             ->orderBy('id')
-            ->chunkById(100, function ($chunk) use ($mediaService, &$totalPurged): void {
+            ->chunkById(100, function ($chunk) use ($deletion, &$totalPurged): void {
                 foreach ($chunk as $media) {
-                    $mediaService->deleteMediaItem($media);
+                    $deletion->delete($media);
                     $totalPurged++;
                 }
             });

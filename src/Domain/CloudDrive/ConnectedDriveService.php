@@ -545,7 +545,7 @@ class ConnectedDriveService
         $binary = $adapter->getFileBinary($remoteFileId);
         $size   = strlen($binary);
 
-        $this->storage->ensureQuota($workspace, $size);
+        $this->storage->assertCanStore($workspace, $size);
 
         $disk      = $this->files->getDefaultDisk();
         $extension = pathinfo($metadata->name, PATHINFO_EXTENSION);

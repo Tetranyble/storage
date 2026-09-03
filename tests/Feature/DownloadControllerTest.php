@@ -196,7 +196,7 @@ class DownloadControllerTest extends PackageTestCase
     private function mediaRecord(
         string      $filename,
         AccessScope $scope,
-        string      $path = null,
+        ?string     $path = null,
     ): Media {
         return Media::create([
             'uuid'          => Str::uuid(),

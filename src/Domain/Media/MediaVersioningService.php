@@ -2,17 +2,15 @@
 
 namespace Tetranyble\Storage\Domain\Media;
 
-use Tetranyble\Storage\Contracts\ActivityFeed;
-use Tetranyble\Storage\Contracts\ActivityLogger;
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
-use Tetranyble\Storage\Enums\MediaRevisionEventType;
-use Tetranyble\Storage\Models\Media;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Contracts\ActivityFeed;
+use Tetranyble\Storage\Contracts\ActivityLogger;
+use Tetranyble\Storage\Enums\MediaRevisionEventType;
+use Tetranyble\Storage\Models\Media;
 
 /**
  * Owns all versioning semantics for Media records.
@@ -20,14 +18,18 @@ use RuntimeException;
  * Version fields (current, version_group_uuid, version_number, previous_version_id)
  * are NOT in Media::$fillable. The only safe path to write them is through this
  * service, which uses forceFill() internally.
+ *
+ * Version numbers are allocated through media_version_groups. The group row acts
+ * as the serialization point for concurrent revisions and current-version changes.
  */
 class MediaVersioningService
 {
+    private const VERSION_GROUPS_TABLE = 'media_version_groups';
+
     public function __construct(
-        private readonly FileSystemContract $files,
-        private readonly StorageService     $storage,
-        private readonly ActivityLogger     $activityLogger,
-        private readonly ActivityFeed       $activityFeed,
+        private readonly MediaDeletionService $deletion,
+        private readonly ActivityLogger $activityLogger,
+        private readonly ActivityFeed $activityFeed,
     ) {}
 
     // ---------------------------------------------------------------
@@ -51,12 +53,37 @@ class MediaVersioningService
      */
     public function currentVersion(Media $media): ?Media
     {
-        return Media::query()
-            ->where('version_group_uuid', $this->ensureVersionSeed($media))
+        $groupUuid = $this->ensureVersionSeed($media);
+        $this->ensureVersionRegistry($groupUuid);
+
+        $currentMediaId = DB::table(self::VERSION_GROUPS_TABLE)
+            ->where('version_group_uuid', $groupUuid)
+            ->value('current_media_id');
+
+        if ($currentMediaId !== null) {
+            $current = Media::query()->find($currentMediaId);
+            if ($current instanceof Media && $current->current) {
+                return $current;
+            }
+        }
+
+        $current = Media::query()
+            ->where('version_group_uuid', $groupUuid)
             ->where('current', true)
             ->latest('version_number')
             ->latest('id')
             ->first();
+
+        if ($current instanceof Media) {
+            DB::table(self::VERSION_GROUPS_TABLE)
+                ->where('version_group_uuid', $groupUuid)
+                ->update([
+                    'current_media_id' => $current->id,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return $current;
     }
 
     /**
@@ -75,9 +102,6 @@ class MediaVersioningService
 
     /**
      * Permanently delete a non-current version.
-     *
-     * Throws if the version is the active one — restore another revision first.
-     * Throws if it is the only version in the group.
      */
     public function deleteVersion(Model $workspace, Media $version, Model $actor): void
     {
@@ -97,32 +121,22 @@ class MediaVersioningService
             throw new RuntimeException('Cannot delete the only version of a file.');
         }
 
-        $path = $version->path;
-        $disk = $version->disk;
-        $size = (int) ($version->size ?? 0);
+        $versionGroupUuid = $version->version_group_uuid;
+        $versionNumber = $version->version_number;
 
-        // Remove physical file when it is not an external URL
-        if ($path && ! $this->isExternalUrl($path) && $disk instanceof Disk) {
-            $this->files->delete($path, $disk);
-        }
-
-        if ($size > 0) {
-            $this->storage->decreaseUsage($workspace, $size);
-        }
+        $this->deletion->delete($version);
 
         $this->activityLogger->log(
-            subject:     $version,
-            type:        'storage.media.'.MediaRevisionEventType::DELETED->value,
+            subject: $version,
+            type: 'storage.media.'.MediaRevisionEventType::DELETED->value,
             description: 'Media version permanently deleted.',
-            actor:       $actor,
-            meta:        [
-                'version_group_uuid' => $version->version_group_uuid,
-                'version_number'     => $version->version_number,
+            actor: $actor,
+            meta: [
+                'version_group_uuid' => $versionGroupUuid,
+                'version_number' => $versionNumber,
             ],
             workspaceId: $workspace->id,
         );
-
-        $version->forceDelete();
     }
 
     // ---------------------------------------------------------------
@@ -130,10 +144,9 @@ class MediaVersioningService
     // ---------------------------------------------------------------
 
     /**
-     * Compute the [groupUuid, versionNumber, previousVersionId] triple for a new upload.
-     * When superseding, the previous version is immediately marked non-current.
-     *
-     * This method is intentionally package-internal — call it from MediaService only.
+     * Reserve the [groupUuid, versionNumber, previousVersionId] triple for a new
+     * upload. Reserving a number never changes which Media row is current; that
+     * happens only when applyContext() successfully persists the replacement.
      *
      * @return array{0: string, 1: int, 2: int|null}
      */
@@ -143,62 +156,175 @@ class MediaVersioningService
             return [(string) Str::uuid(), 1, null];
         }
 
-        $groupUuid         = $this->ensureVersionSeed($replacedMedia);
-        $nextVersionNumber = (int) Media::query()
-            ->where('version_group_uuid', $groupUuid)
-            ->max('version_number') + 1;
-
-        if ($supersede && $replacedMedia->current) {
-            $replacedMedia->forceFill(['current' => false])->save();
-        }
+        $groupUuid = $this->ensureVersionSeed($replacedMedia);
+        $nextVersionNumber = $this->reserveNextVersionNumber($groupUuid);
 
         return [$groupUuid, $nextVersionNumber, $replacedMedia->id];
     }
 
     /**
      * Write version fields onto an already-persisted Media record.
-     * Uses forceFill() to bypass $fillable — only call from MediaService.
      *
-     * @param array{0: string, 1: int, 2: int|null} $context From prepareContext()
+     * The version-group row is locked while changing current-version state, so
+     * concurrent revisions cannot leave multiple rows marked current.
+     *
+     * @param array{0: string, 1: int, 2: int|null} $context
      */
     public function applyContext(Media $media, array $context, bool $isCurrent = true): void
     {
         [$groupUuid, $versionNumber, $previousVersionId] = $context;
 
-        if ($isCurrent) {
-            Media::query()
-                ->where('version_group_uuid', $groupUuid)
-                ->whereKeyNot($media->getKey())
-                ->update(['current' => false]);
-        }
+        DB::transaction(function () use (
+            $media,
+            $groupUuid,
+            $versionNumber,
+            $previousVersionId,
+            $isCurrent,
+        ): void {
+            $this->ensureVersionRegistry($groupUuid, max(2, $versionNumber + 1));
 
-        $media->forceFill([
-            'current'             => $isCurrent,
-            'version_group_uuid'  => $groupUuid,
-            'version_number'      => $versionNumber,
-            'previous_version_id' => $previousVersionId,
-        ])->save();
+            DB::table(self::VERSION_GROUPS_TABLE)
+                ->where('version_group_uuid', $groupUuid)
+                ->lockForUpdate()
+                ->first();
+
+            if ($isCurrent) {
+                Media::query()
+                    ->where('version_group_uuid', $groupUuid)
+                    ->whereKeyNot($media->getKey())
+                    ->update(['current' => false]);
+            }
+
+            $media->forceFill([
+                'current' => $isCurrent,
+                'version_group_uuid' => $groupUuid,
+                'version_number' => $versionNumber,
+                'previous_version_id' => $previousVersionId,
+            ])->save();
+
+            if ($isCurrent) {
+                DB::table(self::VERSION_GROUPS_TABLE)
+                    ->where('version_group_uuid', $groupUuid)
+                    ->update([
+                        'current_media_id' => $media->id,
+                        'updated_at' => now(),
+                    ]);
+            }
+        });
     }
 
     /**
-     * Ensure the media record has a version_group_uuid seed.
-     * Writes to the DB via forceFill() if not already set.
+     * Ensure the media record has a version_group_uuid seed and corresponding
+     * allocator registry.
      */
     public function ensureVersionSeed(Media $media): string
     {
         if ($media->version_group_uuid && (int) $media->version_number >= 1) {
-            return $media->version_group_uuid;
+            $groupUuid = (string) $media->version_group_uuid;
+            $this->ensureVersionRegistry($groupUuid, (int) $media->version_number + 1, $media->current ? $media->id : null);
+
+            return $groupUuid;
         }
 
-        $groupUuid     = $media->version_group_uuid ?: (string) ($media->uuid ?: Str::uuid());
+        $groupUuid = $media->version_group_uuid ?: (string) ($media->uuid ?: Str::uuid());
         $versionNumber = max(1, (int) ($media->version_number ?: 1));
 
-        $media->forceFill([
-            'version_group_uuid' => $groupUuid,
-            'version_number'     => $versionNumber,
-        ])->save();
+        DB::transaction(function () use ($media, $groupUuid, $versionNumber): void {
+            $media->forceFill([
+                'version_group_uuid' => $groupUuid,
+                'version_number' => $versionNumber,
+            ])->save();
 
-        return $groupUuid;
+            $this->ensureVersionRegistry(
+                $groupUuid,
+                $versionNumber + 1,
+                $media->current ? $media->id : null,
+            );
+        });
+
+        return (string) $groupUuid;
+    }
+
+    // ---------------------------------------------------------------
+    // Version allocator
+    // ---------------------------------------------------------------
+
+    private function reserveNextVersionNumber(string $groupUuid): int
+    {
+        return DB::transaction(function () use ($groupUuid): int {
+            $this->ensureVersionRegistry($groupUuid);
+
+            $group = DB::table(self::VERSION_GROUPS_TABLE)
+                ->where('version_group_uuid', $groupUuid)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $group) {
+                throw new RuntimeException('Unable to initialize media version allocator.');
+            }
+
+            $observedMax = (int) (Media::withTrashed()
+                ->where('version_group_uuid', $groupUuid)
+                ->max('version_number') ?? 0);
+
+            $next = max((int) $group->next_version_number, $observedMax + 1, 1);
+
+            DB::table(self::VERSION_GROUPS_TABLE)
+                ->where('version_group_uuid', $groupUuid)
+                ->update([
+                    'next_version_number' => $next + 1,
+                    'updated_at' => now(),
+                ]);
+
+            return $next;
+        });
+    }
+
+    private function ensureVersionRegistry(
+        string $groupUuid,
+        ?int $minimumNextVersion = null,
+        ?int $currentMediaId = null,
+    ): void {
+        $observedMax = (int) (Media::withTrashed()
+            ->where('version_group_uuid', $groupUuid)
+            ->max('version_number') ?? 0);
+
+        $minimumNextVersion = max($minimumNextVersion ?? 1, $observedMax + 1, 1);
+
+        if ($currentMediaId === null) {
+            $currentMediaId = Media::query()
+                ->where('version_group_uuid', $groupUuid)
+                ->where('current', true)
+                ->orderByDesc('version_number')
+                ->orderByDesc('id')
+                ->value('id');
+        }
+
+        DB::table(self::VERSION_GROUPS_TABLE)->insertOrIgnore([
+            'version_group_uuid' => $groupUuid,
+            'next_version_number' => $minimumNextVersion,
+            'current_media_id' => $currentMediaId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table(self::VERSION_GROUPS_TABLE)
+            ->where('version_group_uuid', $groupUuid)
+            ->where('next_version_number', '<', $minimumNextVersion)
+            ->update([
+                'next_version_number' => $minimumNextVersion,
+                'updated_at' => now(),
+            ]);
+
+        if ($currentMediaId !== null) {
+            DB::table(self::VERSION_GROUPS_TABLE)
+                ->where('version_group_uuid', $groupUuid)
+                ->whereNull('current_media_id')
+                ->update([
+                    'current_media_id' => $currentMediaId,
+                    'updated_at' => now(),
+                ]);
+        }
     }
 
     // ---------------------------------------------------------------

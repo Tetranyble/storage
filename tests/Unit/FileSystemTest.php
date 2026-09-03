@@ -37,6 +37,17 @@ class FileSystemTest extends PackageTestCase
         $this->assertStringContainsString($path, $result);
     }
 
+
+    public function test_get_rejects_absolute_urls_and_does_not_act_as_an_http_client(): void
+    {
+        $fs = $this->app->make(FileSystemContract::class);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('only reads configured storage paths');
+
+        $fs->get('https://example.com/private-resource');
+    }
+
     public function test_copy_across_disks(): void
     {
         $fs = $this->app->make(FileSystemContract::class);

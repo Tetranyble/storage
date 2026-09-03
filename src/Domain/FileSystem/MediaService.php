@@ -4,13 +4,13 @@ namespace Tetranyble\Storage\Domain\FileSystem;
 
 use Tetranyble\Storage\Contracts\ActivityLogger;
 use Tetranyble\Storage\Contracts\RemoteMediaImporter;
-use Tetranyble\Storage\Contracts\RemoteUrlValidator;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\Contracts\MediaUploader;
 use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
 use Tetranyble\Storage\Domain\FileSystem\Enums\UploadStrategy;
-use Tetranyble\Storage\Domain\FileSystem\Exceptions\RemoteDownloadException;
+use Tetranyble\Storage\Domain\Media\CurrentMediaSelectionService;
+use Tetranyble\Storage\Domain\Media\MediaDeletionService;
 use Tetranyble\Storage\Domain\Media\MediaLibraryService;
 use Tetranyble\Storage\Domain\Media\MediaPostProcessor;
 use Tetranyble\Storage\Domain\Media\MediaVersioningService;
@@ -23,21 +23,22 @@ use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use GuzzleHttp\Psr7\Uri;
-use GuzzleHttp\Psr7\UriResolver;
 
 class MediaService implements MediaUploader, RemoteMediaImporter
 {
     public function __construct(
         protected FileSystemContract $files,
         protected StorageService $storage,
+        protected StorageLifecycleService $lifecycle,
+        protected StorageOrphanService $orphans,
         protected MediaLibraryService $library,
         protected MediaPostProcessor $postProcessor,
         protected ActivityLogger $activityLogger,
         protected MediaVersioningService $versioning,
-        protected RemoteUrlValidator $remoteUrlValidator,
+        protected RemoteMediaDownloadService $remoteDownloader,
+        protected MediaDeletionService $deletion,
+        protected CurrentMediaSelectionService $currentSelection,
     ) {}
 
     public function uploadUploadedFile(UploadedFile $file, MediaUploadOptions $options): Media
@@ -186,7 +187,7 @@ class MediaService implements MediaUploader, RemoteMediaImporter
             $makeCurrent,
         ): Media {
             if ($makeCurrent) {
-                $this->lockAndClearCurrentMedia($model, $purpose);
+                $this->currentSelection->clearOthers($model, $purpose);
             }
 
             /** @var Media $created */
@@ -302,9 +303,21 @@ class MediaService implements MediaUploader, RemoteMediaImporter
             );
             $storedPath = trim($targetDirectory.'/'.$filename, '/');
 
-            $copied = $this->files->copy($revision->path, $storedPath, $disk, $disk);
-            if (! $copied) {
-                throw new \RuntimeException('Unable to restore media revision on storage.');
+            try {
+                if (! $this->files->copy($revision->path, $storedPath, $disk, $disk)) {
+                    throw new \RuntimeException('Unable to restore media revision on storage.');
+                }
+            } catch (\Throwable $exception) {
+                // Some adapters can leave a partial destination even when copy()
+                // returns false or throws. The source revision remains untouched.
+                $this->orphans->deleteOrTrack(
+                    $disk,
+                    $storedPath,
+                    $workspace?->getKey() ? (int) $workspace->getKey() : null,
+                    $revision->size ? (int) $revision->size : null,
+                    'revision_restore_rollback',
+                );
+                throw $exception;
             }
         } else {
             $storedPath = $revision->path;
@@ -447,7 +460,7 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         $disk = $this->resolveDisk($options);
         $targetDirectory = $this->resolveUploadDirectory($options, $workspace);
 
-        [$storedPath, $size, $mime] = $this->downloadRemoteToDisk(
+        [$storedPath, $size, $mime] = $this->remoteDownloader->download(
             $url,
             $targetDirectory,
             $disk,
@@ -576,7 +589,7 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         $disk = $this->resolveDisk($options);
         $targetDirectory = $this->resolveUploadDirectory($options, $workspace);
 
-        [$storedPath, $size, $mime] = $this->downloadRemoteToDisk(
+        [$storedPath, $size, $mime] = $this->remoteDownloader->download(
             $url,
             $targetDirectory,
             $disk,
@@ -616,71 +629,129 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         );
 
         $workspace = $this->resolveWorkspaceFromOptions($options) ?? StorageConfig::findWorkspace($media->workspace_id);
+        $sourceWorkspace = $media->workspace_id ? StorageConfig::findWorkspace($media->workspace_id) : null;
         $size = (int) ($media->size ?? 0);
+        $hasStoredObject = is_string($media->path)
+            && $media->path !== ''
+            && ! $this->isExternalUrl($media->path)
+            && $media->disk instanceof Disk;
+        $workspaceChanged = $hasStoredObject
+            && $workspace
+            && (int) ($media->workspace_id ?? 0) !== (int) $workspace->getKey();
+        $destinationReserved = false;
+        $copiedPath = null;
+        $oldPath = $media->path;
+        $disk = $media->disk instanceof Disk ? $media->disk : null;
 
-        if ($workspace) {
-            if ($media->workspace_id === null && $size > 0) {
-                $this->storage->assertCanStore($workspace, $size);
+        try {
+            // Reserve destination quota before touching the old workspace. On any
+            // failure the reservation is released and source accounting remains.
+            if ($workspaceChanged && $size > 0) {
                 $this->storage->increaseUsage($workspace, $size);
-            } elseif ($media->workspace_id !== null && $media->workspace_id !== $workspace->id && $size > 0) {
-                if ($oldWorkspace = StorageConfig::findWorkspace($media->workspace_id)) {
-                    $this->storage->decreaseUsage($oldWorkspace, $size);
+                $destinationReserved = true;
+            }
+
+            $newPath = $oldPath;
+            if ($hasStoredObject && $disk) {
+                $newPath = trim($this->resolveUploadDirectory($options, $workspace).'/'.basename((string) $oldPath), '/');
+                if ($newPath !== $oldPath) {
+                    // Copy first instead of move. The original remains a valid
+                    // rollback source until the DB transaction commits.
+                    if (! $this->files->copy((string) $oldPath, $newPath, $disk, $disk)) {
+                        $this->orphans->deleteOrTrack(
+                            $disk,
+                            $newPath,
+                            $workspace?->getKey() ? (int) $workspace->getKey() : null,
+                            $size > 0 ? $size : null,
+                            'attach_rollback',
+                        );
+                        throw new \RuntimeException('Unable to copy media into its attached storage location.');
+                    }
+                    $copiedPath = $newPath;
+                }
+            }
+
+            $replacedMedia = $replaceExisting
+                ? $this->findCurrentVersionForModel($model, $purpose, $media->id)
+                : null;
+            $versionContext = $this->versioning->prepareContext($replacedMedia, $makeCurrent);
+            $folder = $workspace ? $this->resolveFolderForOptions($workspace, $options) : null;
+
+            DB::transaction(function () use (
+                $media,
+                $model,
+                $workspace,
+                $sourceWorkspace,
+                $folder,
+                $purpose,
+                $options,
+                $replacedMedia,
+                $versionContext,
+                $makeCurrent,
+                $newPath,
+                $workspaceChanged,
+                $size,
+            ): void {
+                if ($makeCurrent) {
+                    $this->currentSelection->clearOthers($model, $purpose, $media->getKey());
                 }
 
-                $this->storage->assertCanStore($workspace, $size);
-                $this->storage->increaseUsage($workspace, $size);
+                $media->forceFill([
+                    'workspace_id' => $workspace?->id,
+                    'folder_id' => $folder?->id,
+                    'mediable_id' => $model->getKey(),
+                    'mediable_type' => $model->getMorphClass(),
+                    'use' => $purpose,
+                    'module' => $options->module ?: $media->module,
+                    'upload_strategy' => $options->strategy !== UploadStrategy::SINGLE ? $options->strategy : ($media->upload_strategy ?? UploadStrategy::SINGLE),
+                    'path' => $newPath,
+                    'is_temporary' => false,
+                    'temporary_expires_at' => null,
+                ])->save();
+
+                if ($replacedMedia) {
+                    $this->versioning->applyContext($media, $versionContext, $makeCurrent);
+                } else {
+                    $this->versioning->ensureVersionSeed($media);
+                    $media->forceFill(['current' => $makeCurrent])->save();
+                }
+
+                if ($workspaceChanged && $sourceWorkspace && $size > 0) {
+                    $this->storage->decreaseUsage($sourceWorkspace, $size);
+                }
+            });
+        } catch (\Throwable $exception) {
+            if ($copiedPath && $disk) {
+                $this->orphans->deleteOrTrack(
+                    $disk,
+                    $copiedPath,
+                    $workspace?->getKey() ? (int) $workspace->getKey() : null,
+                    $size > 0 ? $size : null,
+                    'attach_rollback',
+                );
             }
+
+            if ($destinationReserved && $workspace) {
+                $this->storage->decreaseUsage($workspace, $size);
+            }
+            if ($sourceWorkspace) {
+                $sourceWorkspace->refresh();
+            }
+
+            throw $exception;
         }
 
-        $replacedMedia = $replaceExisting
-            ? $this->findCurrentVersionForModel($model, $purpose, $media->id)
-            : null;
-        $versionContext = $this->versioning->prepareContext($replacedMedia, $makeCurrent);
-
-        if ($media->path && ! $this->isExternalUrl($media->path) && $media->disk instanceof Disk) {
-            $newPath = trim($this->resolveUploadDirectory($options, $workspace).'/'.basename($media->path), '/');
-            if ($newPath !== $media->path) {
-                $this->files->disk($media->disk)->move($media->path, $newPath, $media->disk);
-                $media->path = $newPath;
-            }
+        // The DB now points at the copy. Failure to remove the old object is an
+        // orphan-cleanup concern, not a reason to roll back a committed attach.
+        if ($copiedPath && $disk && is_string($oldPath) && $oldPath !== '') {
+            $this->orphans->deleteOrTrack(
+                $disk,
+                $oldPath,
+                $sourceWorkspace?->getKey() ? (int) $sourceWorkspace->getKey() : null,
+                $size > 0 ? $size : null,
+                'relocation_cleanup',
+            );
         }
-
-        $folder = $workspace ? $this->resolveFolderForOptions($workspace, $options) : null;
-
-        DB::transaction(function () use (
-            $media,
-            $model,
-            $workspace,
-            $folder,
-            $purpose,
-            $options,
-            $replacedMedia,
-            $versionContext,
-            $makeCurrent,
-        ): void {
-            if ($makeCurrent) {
-                $this->lockAndClearCurrentMedia($model, $purpose, $media->getKey());
-            }
-
-            $media->forceFill([
-                'workspace_id' => $workspace?->id,
-                'folder_id' => $folder?->id,
-                'mediable_id' => $model->getKey(),
-                'mediable_type' => get_class($model),
-                'use' => $purpose,
-                'module' => $options->module ?: $media->module,
-                'upload_strategy' => $options->strategy !== UploadStrategy::SINGLE ? $options->strategy : ($media->upload_strategy ?? UploadStrategy::SINGLE),
-                'is_temporary' => false,
-                'temporary_expires_at' => null,
-            ])->save();
-
-            if ($replacedMedia) {
-                $this->versioning->applyContext($media, $versionContext, $makeCurrent);
-            } else {
-                $this->versioning->ensureVersionSeed($media);
-                $media->forceFill(['current' => $makeCurrent])->save();
-            }
-        });
 
         $this->recordRevisionActivity(
             media: $media,
@@ -695,7 +766,7 @@ class MediaService implements MediaUploader, RemoteMediaImporter
             ],
         );
 
-        return $media;
+        return $media->refresh();
     }
 
     public function clearMedia(Model $model): void
@@ -729,26 +800,7 @@ class MediaService implements MediaUploader, RemoteMediaImporter
 
     public function deleteMediaItem(Media $media): void
     {
-        $path = $media->path;
-
-        $media->shares()->delete();
-        $media->collaborators()->delete();
-
-        if ($path && ! $this->isExternalUrl($path) && $media->disk instanceof Disk) {
-            $this->files->disk($media->disk)->delete($path);
-        }
-
-        if ($media->workspace_id && $media->size) {
-            if ($workspace = StorageConfig::findWorkspace($media->workspace_id)) {
-                $this->storage->decreaseUsage($workspace, (int) $media->size);
-            }
-        }
-
-        if (method_exists($media, 'forceDelete')) {
-            $media->forceDelete();
-        } else {
-            $media->delete();
-        }
+        $this->deletion->delete($media);
     }
 
     protected function persistUploadedFile(UploadedFile $file, MediaUploadOptions $options): Media
@@ -756,32 +808,35 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         $workspace = $this->resolveWorkspaceFromOptions($options);
         $disk = $this->resolveDisk($options);
         $size = (int) ($file->getSize() ?? 0);
-
-        if ($workspace && $size > 0) {
-            $this->storage->assertCanStore($workspace, $size);
-        }
-
+        $mime = $file->getClientMimeType() ?: $file->getMimeType();
+        $originalName = $options->originalName ?? $file->getClientOriginalName();
+        $checksum = $this->checksumForPath($file->getRealPath());
         $targetDirectory = $this->resolveUploadDirectory($options, $workspace);
-        $storedPath = $this->files->disk($disk)->storeAs(
-            $file,
-            $this->generateStoredFilename($options->originalName ?? $file->getClientOriginalName(), $options->preserveFilename),
-            $targetDirectory
-        );
+        $storedFilename = $this->generateStoredFilename($originalName, $options->preserveFilename);
 
-        if ($workspace && $size > 0) {
-            $this->storage->increaseUsage($workspace, $size);
-        }
-
-        return $this->persistExistingStoredFile(
-            storedPath: $storedPath,
-            size: $size,
-            mime: $file->getClientMimeType() ?: $file->getMimeType(),
-            originalName: $options->originalName ?? $file->getClientOriginalName(),
-            checksum: $this->checksumForPath($file->getRealPath()),
-            options: $options,
+        $state = $this->lifecycle->storeAndCommit(
             workspace: $workspace,
             disk: $disk,
+            size: $size,
+            store: fn (): string => $this->files->disk($disk)->storeAs(
+                $file,
+                $storedFilename,
+                $targetDirectory,
+            ),
+            commit: fn (string $storedPath): array => $this->persistStoredFileRecord(
+                storedPath: $storedPath,
+                size: $size,
+                mime: $mime,
+                originalName: $originalName,
+                checksum: $checksum,
+                options: $options,
+                workspace: $workspace,
+                disk: $disk,
+            ),
+            expectedPath: trim($targetDirectory.'/'.$storedFilename, '/'),
         );
+
+        return $this->finishStoredFilePersistence($state, $options);
     }
 
     protected function persistPathUpload(string $path, MediaUploadOptions $options): Media
@@ -790,28 +845,51 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         $disk = $this->resolveDisk($options);
         $targetDirectory = $this->resolveUploadDirectory($options, $workspace);
         $originalName = basename($path);
-        $storedPath = $this->files->disk($disk)->storeAs(
-            $path,
-            $this->generateStoredFilename($originalName, $options->preserveFilename),
-            $targetDirectory
-        );
+        $storedFilename = $this->generateStoredFilename($originalName, $options->preserveFilename);
+        $expectedPath = trim($targetDirectory.'/'.$storedFilename, '/');
+        $storedPath = null;
+        $handedToLifecycle = false;
+        $checksum = $this->checksumForPath($path);
 
-        $size = $this->files->size($storedPath, $disk);
-        if ($workspace && $size > 0) {
-            $this->storage->assertCanStore($workspace, $size);
-            $this->storage->increaseUsage($workspace, $size);
+        try {
+            $storedPath = $this->files->disk($disk)->storeAs(
+                $path,
+                $storedFilename,
+                $targetDirectory
+            );
+
+            // Size/MIME inspection can itself fail after the object has already
+            // been written. Keep this inside the compensation boundary.
+            $size = $this->files->size($storedPath, $disk);
+            $mime = $this->files->mimeType($storedPath, $disk);
+
+            $handedToLifecycle = true;
+
+            return $this->persistExistingStoredFile(
+                storedPath: $storedPath,
+                size: $size,
+                mime: $mime,
+                originalName: $originalName,
+                checksum: $checksum,
+                options: $options,
+                workspace: $workspace,
+                disk: $disk,
+            );
+        } catch (\Throwable $exception) {
+            // persistExistingStoredFile() owns compensation after hand-off. Before
+            // that point, this method must clean a failed/partial path write.
+            if (! $handedToLifecycle) {
+                $rollbackPath = is_string($storedPath) && $storedPath !== '' ? $storedPath : $expectedPath;
+                $this->orphans->deleteOrTrack(
+                    $disk,
+                    $rollbackPath,
+                    $workspace?->getKey() ? (int) $workspace->getKey() : null,
+                    reason: 'path_upload_rollback',
+                );
+            }
+
+            throw $exception;
         }
-
-        return $this->persistExistingStoredFile(
-            storedPath: $storedPath,
-            size: $size,
-            mime: $this->files->mimeType($storedPath, $disk),
-            originalName: $originalName,
-            checksum: $this->checksumForPath($path),
-            options: $options,
-            workspace: $workspace,
-            disk: $disk,
-        );
     }
 
     protected function persistExistingStoredFile(
@@ -824,41 +902,103 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         ?Model $workspace,
         Disk $disk,
     ): Media {
-        $folder = $workspace ? $this->resolveFolderForOptions($workspace, $options) : null;
-        $attributes = [
-            'description' => $options->description(),
-            'attribution' => $options->attribution,
-            'size' => $size,
-            'path' => $storedPath,
-            'original_name' => $originalName,
-            'mime_type' => $mime,
-            'disk' => $disk,
-            'use' => $options->purpose,
-            'module' => $options->module,
-            'upload_strategy' => $options->strategy,
-            'custom_properties' => $options->customProperties,
-            'sha256' => $checksum,
-            'workspace_id' => $workspace?->id,
-            'folder_id' => $folder?->id,
-            'uploaded_by' => $options->userId,
-            'uploaded_at' => now(),
-            'is_temporary' => $options->temporary,
-            'temporary_expires_at' => $options->temporary ? ($options->expiresAt ?: now()->addWeek()) : null,
-        ];
+        $normalizedSize = max(0, (int) ($size ?? 0));
 
+        // External URLs have no package-owned physical object and must never be
+        // entered into object cleanup/quota compensation.
+        if ($this->isExternalUrl($storedPath)) {
+            $state = $this->persistStoredFileRecord(
+                storedPath: $storedPath,
+                size: $size,
+                mime: $mime,
+                originalName: $originalName,
+                checksum: $checksum,
+                options: $options,
+                workspace: $workspace,
+                disk: $disk,
+            );
+        } else {
+            $state = $this->lifecycle->commitExisting(
+                workspace: $workspace,
+                disk: $disk,
+                storedPath: $storedPath,
+                size: $normalizedSize,
+                commit: fn (): array => $this->persistStoredFileRecord(
+                    storedPath: $storedPath,
+                    size: $size,
+                    mime: $mime,
+                    originalName: $originalName,
+                    checksum: $checksum,
+                    options: $options,
+                    workspace: $workspace,
+                    disk: $disk,
+                ),
+            );
+        }
+
+        return $this->finishStoredFilePersistence($state, $options);
+    }
+
+    /**
+     * Persist only the authoritative database record/version state.
+     *
+     * This method intentionally performs no activity logging or post-processing;
+     * StorageLifecycleService relies on the callback boundary to know whether it
+     * is still safe to compensate the physical object and quota reservation.
+     *
+     * @return array{media: Media, replaced_media: Media|null, version_context: array}
+     */
+    protected function persistStoredFileRecord(
+        string $storedPath,
+        int|float|null $size,
+        ?string $mime,
+        ?string $originalName,
+        ?string $checksum,
+        MediaUploadOptions $options,
+        ?Model $workspace,
+        Disk $disk,
+    ): array {
         $replacedMedia = null;
         $versionContext = [];
 
         $media = DB::transaction(function () use (
+            $storedPath,
+            $size,
+            $mime,
+            $originalName,
+            $checksum,
             $options,
-            $attributes,
+            $workspace,
+            $disk,
             &$replacedMedia,
             &$versionContext,
         ): Media {
+            $folder = $workspace ? $this->resolveFolderForOptions($workspace, $options) : null;
+            $attributes = [
+                'description' => $options->description(),
+                'attribution' => $options->attribution,
+                'size' => $size,
+                'path' => $storedPath,
+                'original_name' => $originalName,
+                'mime_type' => $mime,
+                'disk' => $disk,
+                'use' => $options->purpose,
+                'module' => $options->module,
+                'upload_strategy' => $options->strategy,
+                'custom_properties' => $options->customProperties,
+                'sha256' => $checksum,
+                'workspace_id' => $workspace?->id,
+                'folder_id' => $folder?->id,
+                'uploaded_by' => $options->userId,
+                'uploaded_at' => now(),
+                'is_temporary' => $options->temporary,
+                'temporary_expires_at' => $options->temporary ? ($options->expiresAt ?: now()->addWeek()) : null,
+            ];
+
             $replacedMedia = $this->resolveReplacedMedia($options);
             $versionContext = $this->versioning->prepareContext($replacedMedia, $options->makeCurrent);
             if ($options->model && $options->makeCurrent) {
-                $this->lockAndClearCurrentMedia($options->model, $options->purpose);
+                $this->currentSelection->clearOthers($options->model, $options->purpose);
             }
             $created = $this->createMediaRecord($options->model, $attributes);
             $this->versioning->applyContext($created, $versionContext, $options->makeCurrent);
@@ -866,7 +1006,26 @@ class MediaService implements MediaUploader, RemoteMediaImporter
             return $created;
         });
 
-        [$versionGroupUuid, $versionNumber, $previousVersionId] = $versionContext;
+        return [
+            'media' => $media,
+            'replaced_media' => $replacedMedia,
+            'version_context' => $versionContext,
+        ];
+    }
+
+    /**
+     * Post-commit side effects. A failure here must not trigger storage/quota
+     * compensation because the Media row is already the authoritative owner of
+     * the object.
+     *
+     * @param array{media: Media, replaced_media: Media|null, version_context: array} $state
+     */
+    protected function finishStoredFilePersistence(array $state, MediaUploadOptions $options): Media
+    {
+        /** @var Media $media */
+        $media = $state['media'];
+        /** @var Media|null $replacedMedia */
+        $replacedMedia = $state['replaced_media'];
 
         $this->recordRevisionActivity(
             media: $media,
@@ -912,37 +1071,10 @@ class MediaService implements MediaUploader, RemoteMediaImporter
 
     public function setCurrentMedia(Media $media): Media
     {
-        $model = $media->mediable;
-        if (! $model instanceof Model) {
-            throw new \RuntimeException('Standalone media cannot be selected as a model default.');
-        }
-
-        return DB::transaction(function () use ($model, $media): Media {
-            $this->lockAndClearCurrentMedia($model, $media->use, $media->getKey());
-            $media->forceFill(['current' => true])->save();
-
-            return $media->refresh();
-        });
+        return $this->currentSelection->select($media);
     }
 
-    protected function lockAndClearCurrentMedia(
-        Model $model,
-        MediaPurpose $purpose,
-        int|string|null $exceptMediaId = null,
-    ): void {
-        $query = $model->media()
-            ->where('use', $purpose)
-            ->where('current', true);
 
-        if ($exceptMediaId !== null) {
-            $query->whereKeyNot($exceptMediaId);
-        }
-
-        $ids = $query->lockForUpdate()->pluck($query->getModel()->getQualifiedKeyName());
-        if ($ids->isNotEmpty()) {
-            $model->media()->whereKey($ids)->update(['current' => false]);
-        }
-    }
 
     protected function resolveReplacedMedia(MediaUploadOptions $options): ?Media
     {
@@ -1259,156 +1391,5 @@ class MediaService implements MediaUploader, RemoteMediaImporter
         return filter_var($path, FILTER_VALIDATE_URL) !== false;
     }
 
-    protected function downloadRemoteToDisk(
-        string $url,
-        string $directory,
-        Disk $disk,
-        ?string $filename = null,
-        ?Model $workspace = null,
-        ?int $maxSizeBytes = null,
-        ?array $allowedMimes = null,
-    ): array {
-        $maxSize = $maxSizeBytes ?? (int) config('tetranyble-storage.remote.max_size', 50 * 1024 * 1024);
-        $allowed = $allowedMimes ?? config('tetranyble-storage.remote.allowed_mimes', []);
-        $enforceMimes = is_array($allowed) && count($allowed) > 0;
 
-        $response = null;
-        $resolvedUrl = $url;
-        $maxRedirects = max(0, (int) config('tetranyble-storage.remote.max_redirects', 3));
-
-        for ($redirects = 0; $redirects <= $maxRedirects; $redirects++) {
-            $this->remoteUrlValidator->assertSafe($resolvedUrl);
-            $response = Http::timeout(60)
-                ->withOptions(['stream' => true, 'allow_redirects' => false])
-                ->get($resolvedUrl);
-
-            if (! in_array($response->status(), [301, 302, 303, 307, 308], true)) {
-                break;
-            }
-
-            $location = $response->header('Location');
-            if (! is_string($location) || $location === '' || $redirects === $maxRedirects) {
-                throw new RemoteDownloadException('Remote URL exceeded the redirect limit.', $resolvedUrl, $response->status());
-            }
-
-            $resolvedUrl = (string) UriResolver::resolve(new Uri($resolvedUrl), new Uri($location));
-        }
-
-        if ($response === null) {
-            throw new RemoteDownloadException('Remote URL did not return a response.', $resolvedUrl);
-        }
-
-        $response->throw();
-
-        $status = $response->status();
-        $contentLengthHeader = $response->header('Content-Length');
-        if ($contentLengthHeader !== null) {
-            $lengthBytes = (int) $contentLengthHeader;
-
-            if ($maxSize > 0 && $lengthBytes > $maxSize) {
-                throw new RemoteDownloadException(
-                    message: sprintf('Remote file too large (%d bytes, max %d bytes).', $lengthBytes, $maxSize),
-                    url: $url,
-                    status: $status,
-                    size: $lengthBytes,
-                    mime: null,
-                );
-            }
-        }
-
-        $contentType = $response->header('Content-Type');
-        $headerMime = $contentType ? strtolower(Str::before($contentType, ';')) : null;
-
-        $pathPart = parse_url($resolvedUrl, PHP_URL_PATH) ?? '';
-        $ext = pathinfo($pathPart, PATHINFO_EXTENSION);
-        $body = $response->toPsrResponse()->getBody();
-        $resource = fopen('php://temp/maxmemory:5242880', 'w+b');
-        if (! is_resource($resource)) {
-            throw new RemoteDownloadException('Unable to allocate a remote download stream.', $resolvedUrl, $status);
-        }
-
-        $size = 0;
-        $sample = '';
-        try {
-            while (! $body->eof()) {
-                $chunk = $body->read(8192);
-                if ($chunk === '') {
-                    break;
-                }
-
-                $size += strlen($chunk);
-                if ($maxSize > 0 && $size > $maxSize) {
-                    throw new RemoteDownloadException(
-                        sprintf('Downloaded file exceeds max size (%d bytes, max %d bytes).', $size, $maxSize),
-                        $resolvedUrl,
-                        $status,
-                        $size,
-                        $headerMime,
-                    );
-                }
-
-                if (strlen($sample) < 16384) {
-                    $sample .= substr($chunk, 0, 16384 - strlen($sample));
-                }
-                fwrite($resource, $chunk);
-            }
-
-            $detectedMime = $sample !== '' ? (new \finfo(FILEINFO_MIME_TYPE))->buffer($sample) : null;
-            $mime = is_string($detectedMime) && $detectedMime !== 'application/octet-stream'
-                ? strtolower($detectedMime)
-                : $headerMime;
-
-            if ($enforceMimes && (! $mime || ! in_array($mime, $allowed, true))) {
-                throw new RemoteDownloadException(
-                    sprintf('Remote MIME type "%s" is not allowed.', $mime ?: 'unknown'),
-                    $resolvedUrl,
-                    $status,
-                    $size,
-                    $mime,
-                );
-            }
-
-            if ($ext === '' && $mime) {
-                $ext = $this->extensionFromMime($mime);
-            }
-            $ext = $ext !== '' ? $ext : 'bin';
-            $filename = $filename ?: (Str::uuid()->toString().'.'.$ext);
-            $storedPath = trim($directory, '/').'/'.$filename;
-
-            if ($workspace && $size > 0) {
-                $this->storage->assertCanStore($workspace, $size);
-            }
-
-            rewind($resource);
-            if (! $this->files->pipeStream($resource, $storedPath, $disk)) {
-                throw new RemoteDownloadException('Unable to store the remote file.', $resolvedUrl, $status, $size, $mime);
-            }
-
-            if ($workspace && $size > 0) {
-                $this->storage->increaseUsage($workspace, $size);
-            }
-
-            return [$storedPath, $size, $mime];
-        } finally {
-            fclose($resource);
-        }
-    }
-
-    protected function extensionFromMime(?string $mime): string
-    {
-        if (! $mime) {
-            return 'bin';
-        }
-
-        return match ($mime) {
-            'image/jpeg', 'image/jpg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-            'video/mp4' => 'mp4',
-            'video/webm' => 'webm',
-            'application/pdf' => 'pdf',
-            default => 'bin',
-        };
-    }
 }

@@ -36,8 +36,7 @@ class MediaShareController extends StorageController
             404,
         );
 
-        $this->shares->validateAccess($share, $request->input('password'));
-        $this->shares->incrementDownloads($share);
+        $this->shares->consumeDownloadAccess($share, $request->input('password'));
 
         return $this->library->streamDownload($media);
     }

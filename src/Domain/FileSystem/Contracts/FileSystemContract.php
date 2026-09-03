@@ -20,6 +20,8 @@ interface FileSystemContract
 
     public function delete(string $path, ?Disk $disk = null): bool;
 
+    public function exists(string $path, ?Disk $disk = null): bool;
+
     public function deleteDirectory(string $directory, ?Disk $disk = null): bool;
 
     public function makeDirectory(string $directory, ?Disk $disk = null): bool;

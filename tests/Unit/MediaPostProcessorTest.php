@@ -6,6 +6,7 @@ use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
 use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
 use Tetranyble\Storage\Domain\Media\MediaPostProcessor;
+use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
 use Tetranyble\Storage\Models\Folder;
 use Tetranyble\Storage\Models\Media;
 use Tetranyble\Storage\Models\Workspace;
@@ -26,7 +27,7 @@ class MediaPostProcessorTest extends PackageTestCase
         parent::setUp();
 
         $this->files     = Mockery::mock(FileSystemContract::class);
-        $this->processor = new MediaPostProcessor($this->files);
+        $this->processor = new MediaPostProcessor($this->files, new StorageOrphanService($this->files));
 
         $this->workspace = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
         $this->folder = Folder::create([
@@ -111,6 +112,7 @@ class MediaPostProcessorTest extends PackageTestCase
 
         $this->files->shouldReceive('get')->andReturn($this->make1x1Png());
         $this->files->shouldReceive('put')->andThrow(new \RuntimeException('FS error'));
+        $this->files->shouldReceive('exists')->once()->andReturnFalse();
 
         $result = $this->processor->process($media, $this->makeOptions());
 
