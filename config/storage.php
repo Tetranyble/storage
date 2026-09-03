@@ -2,7 +2,33 @@
 
 return [
     // A single package-wide default is used whenever no storage driver is supplied.
-    'default_disk' => env('STORAGE_DISK'),
+    'default_disk' => env('STORAGE_DISK', 'local'),
+
+    'disks' => [
+        's3-private' => [
+            'driver' => 's3',
+            'key' => env('PRIVATE_AWS_ACCESS_KEY_ID'),
+            'secret' => env('PRIVATE_AWS_SECRET_ACCESS_KEY'),
+            'region' => env('PRIVATE_AWS_DEFAULT_REGION', 'us-east-1'),
+            'bucket' => env('PRIVATE_AWS_BUCKET'),
+            'root' => 'private',
+            'endpoint' => env('PRIVATE_AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('PRIVATE_AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+        ],
+        's3-public' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'bucket' => env('AWS_BUCKET'),
+            'root' => 'public',
+            'url' => env('AWS_S3_PUBLIC_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+        ],
+    ],
 
     'transfer' => [
         'authorizer' => \Tetranyble\Storage\Domain\Media\AccessControlTransferAuthorizer::class,
@@ -77,6 +103,44 @@ return [
             'client_secret' => env('ONEDRIVE_CLIENT_SECRET'),
             'redirect_uri'  => env('ONEDRIVE_REDIRECT_URI'),
             'tenant_id'     => env('ONEDRIVE_TENANT_ID', 'common'),
+        ],
+        's3-public' => [
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'bucket' => env('AWS_BUCKET'),
+            'private_bucket' => env('AWS_S3_BUCKET', env('AWS_BUCKET')),
+            'public_bucket' => env('AWS_S3_PUBLIC_BUCKET', env('AWS_BUCKET')),
+            'public_url' => env('AWS_S3_PUBLIC_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+        ],
+        's3-private' => [
+            'key' => env('PRIVATE_AWS_ACCESS_KEY_ID'),
+            'secret' => env('PRIVATE_AWS_SECRET_ACCESS_KEY'),
+            'region' => env('PRIVATE_AWS_DEFAULT_REGION', 'us-east-1'),
+            'bucket' => env('PRIVATE_AWS_BUCKET'),
+            'private_bucket' => env('PRIVATE_AWS_S3_BUCKET', env('PRIVATE_AWS_BUCKET')),
+            'public_bucket' => env('PRIVATE_AWS_S3_PUBLIC_BUCKET', env('PRIVATE_AWS_BUCKET')),
+            'public_url' => env('PRIVATE_AWS_S3_PUBLIC_URL'),
+            'endpoint' => env('PRIVATE_AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('PRIVATE_AWS_USE_PATH_STYLE_ENDPOINT', false),
+        ],
+        'azure_blob' => [
+            'connection_string' => env('AZURE_STORAGE_CONNECTION_STRING'),
+            'account_name' => env('AZURE_STORAGE_ACCOUNT'),
+            'account_key' => env('AZURE_STORAGE_KEY'),
+            'container' => env('AZURE_STORAGE_CONTAINER'),
+        ],
+        'gcs' => [
+            'bucket' => env('GCS_BUCKET'),
+            'key_file' => env('GCS_KEY_FILE'),
+            'path_prefix' => env('GCS_PATH_PREFIX'),
+        ],
+        'cloudinary' => [
+            'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+            'api_key' => env('CLOUDINARY_API_KEY'),
+            'api_secret' => env('CLOUDINARY_API_SECRET'),
         ],
     ],
 
