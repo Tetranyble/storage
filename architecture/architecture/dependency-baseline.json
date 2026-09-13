@@ -1,0 +1,46 @@
+{
+    "description": "Step 6 adapter-isolation baseline. Domain and Application framework/concrete-adapter debt are both zero; any regression is forbidden.",
+    "rules": {
+        "domain_laravel": {
+            "needle": "Illuminate\\",
+            "target": "0: Domain must be framework-independent.",
+            "module_layer": "Domain"
+        },
+        "domain_symfony_http": {
+            "needle": "Symfony\\Component\\HttpFoundation\\",
+            "target": "0: HTTP response types belong in adapters.",
+            "module_layer": "Domain"
+        },
+        "domain_application": {
+            "needle": "\\Application\\",
+            "target": "0: Domain cannot depend on Application.",
+            "module_layer": "Domain"
+        },
+        "domain_infrastructure": {
+            "needle": "\\Infrastructure\\",
+            "target": "0: Domain cannot depend on Infrastructure.",
+            "module_layer": "Domain"
+        },
+        "domain_http": {
+            "needle": "Tetranyble\\Storage\\Http\\",
+            "target": "0: Domain cannot depend on HTTP adapters.",
+            "module_layer": "Domain"
+        },
+        "application_infrastructure": {
+            "needle": "\\Infrastructure\\",
+            "target": "0: Application depends on ports, never concrete adapters.",
+            "module_layer": "Application"
+        },
+        "application_laravel": {
+            "needle": "Illuminate\\",
+            "target": "0: command/application core should be framework-independent; optimized reads move behind query adapters.",
+            "module_layer": "Application"
+        },
+        "application_http": {
+            "needle": "Tetranyble\\Storage\\Http\\",
+            "target": "0: Application cannot depend on HTTP adapters.",
+            "module_layer": "Application"
+        }
+    },
+    "violations": {}
+}

@@ -1,0 +1,15 @@
+{
+    "description": "Step 1 size ratchet. Existing oversized files may only shrink; newly created files must respect the default budget.",
+    "maximum_new_class_lines": 350,
+    "oversized_files": {
+        "src/Modules/Media/Infrastructure/Application/MediaLibraryService.php": 807,
+        "src/Modules/Versioning/Infrastructure/Application/MediaVersioningService.php": 352,
+        "src/Modules/CloudDrive/Infrastructure/ConnectedDriveService.php": 638,
+        "src/Modules/DirectUpload/Infrastructure/DirectUploadService.php": 970,
+        "src/Modules/DirectUpload/Infrastructure/S3DirectUploadGateway.php": 354,
+        "src/Modules/Access/Infrastructure/Persistence/Eloquent/Queries/ResourceVisibilityQuery.php": 356,
+        "src/Modules/Storage/Infrastructure/FileSystem.php": 408,
+        "src/Modules/Media/Infrastructure/Storage/MediaService.php": 1351,
+        "src/Modules/Upload/Infrastructure/ResumableUploadService.php": 900
+    }
+}

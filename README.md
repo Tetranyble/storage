@@ -6,6 +6,8 @@
 
 Production-oriented storage, media-library, upload, sharing, cloud-drive, processing, and file-management infrastructure for Laravel 12 and 13.
 
+CI is verified by GitHub Actions and a verification-only CircleCI fallback; stable tags/releases remain gated through GitHub. See [`docs/CI_CD.md`](docs/CI_CD.md) and [`docs/CIRCLECI.md`](docs/CIRCLECI.md).
+
 The package is designed around one rule: **application/domain rules decide; storage providers and Laravel adapters implement them**. It supports workspace isolation, ACL-aware queries, quota accounting, resumable and direct uploads, media processing/quarantine, derivative assets, retention, bulk operations, and operational health checks.
 
 ## Requirements

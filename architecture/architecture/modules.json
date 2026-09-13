@@ -1,0 +1,66 @@
+{
+    "version": 1,
+    "description": "Step 2 capability ownership map. Core code lives in vertical modules; Laravel delivery/integration remains outside module cores.",
+    "modules": {
+        "Access": {
+            "purpose": "Authorization, collaborator grants and SQL visibility policies."
+        },
+        "Activity": {
+            "purpose": "Activity recording and activity-feed capabilities."
+        },
+        "CloudDrive": {
+            "purpose": "Connected external drive lifecycle and provider adapters."
+        },
+        "DirectUpload": {
+            "purpose": "Provider-direct upload sessions, signing and finalization."
+        },
+        "Download": {
+            "purpose": "Download orchestration across package and connected-drive storage."
+        },
+        "Folder": {
+            "purpose": "Folder lifecycle."
+        },
+        "Health": {
+            "purpose": "Storage health diagnostics."
+        },
+        "Media": {
+            "purpose": "Authoritative media lifecycle, metadata, comments and media persistence."
+        },
+        "Observability": {
+            "purpose": "Telemetry ports and Laravel/null adapters."
+        },
+        "Processing": {
+            "purpose": "Media processing, derivatives and asynchronous processing jobs."
+        },
+        "Quota": {
+            "purpose": "Quota vocabulary and enforcement errors."
+        },
+        "Remote": {
+            "purpose": "Safe remote media import."
+        },
+        "Sharing": {
+            "purpose": "Share lifecycle, download constraints and share URL ports."
+        },
+        "Storage": {
+            "purpose": "Filesystem abstraction, placement, lifecycle and orphan cleanup."
+        },
+        "Trust": {
+            "purpose": "Inspection, scanning, quarantine and delivery trust policies."
+        },
+        "Transfer": {
+            "purpose": "Cross-storage transfer authorization/orchestration."
+        },
+        "Upload": {
+            "purpose": "Server-mediated resumable upload sessions."
+        },
+        "Versioning": {
+            "purpose": "Media revision/version-group behavior."
+        },
+        "Workspace": {
+            "purpose": "Workspace identity, resolution and workspace-scoped read models."
+        },
+        "Shared": {
+            "purpose": "Minimal shared kernel for cross-capability errors and Eloquent mechanics; must not accumulate feature behavior."
+        }
+    }
+}
