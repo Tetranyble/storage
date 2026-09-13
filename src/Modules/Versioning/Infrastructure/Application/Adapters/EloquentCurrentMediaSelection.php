@@ -17,6 +17,6 @@ final class EloquentCurrentMediaSelection implements CurrentMediaSelection
             throw new InvalidArgumentException('Expected Media model.');
         }
 
-return $this->selection->select($media);
+        return $this->selection->select($media);
     }
 }

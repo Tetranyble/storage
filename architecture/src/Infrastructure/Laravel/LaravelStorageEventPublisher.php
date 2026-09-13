@@ -55,7 +55,7 @@ final class LaravelStorageEventPublisher implements StorageEventPublisher
             throw new \InvalidArgumentException('Expected Folder model.');
         }
 
-return $value;
+        return $value;
     }
 
     private function media(object $value): Media
@@ -64,7 +64,7 @@ return $value;
             throw new \InvalidArgumentException('Expected Media model.');
         }
 
-return $value;
+        return $value;
     }
 
     private function share(object $value): MediaShare
@@ -73,7 +73,7 @@ return $value;
             throw new \InvalidArgumentException('Expected MediaShare model.');
         }
 
-return $value;
+        return $value;
     }
 
     private function actor(?object $value): ?Model
@@ -84,6 +84,6 @@ return $value;
             throw new \InvalidArgumentException('Expected Eloquent actor model.');
         }
 
-return $value;
+        return $value;
     }
 }
