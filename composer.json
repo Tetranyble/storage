@@ -140,6 +140,8 @@
     },
     "config": {
         "sort-packages": true,
-        "allow-plugins": {}
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
     }
 }
