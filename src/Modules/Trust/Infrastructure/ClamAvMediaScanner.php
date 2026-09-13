@@ -42,6 +42,7 @@ class ClamAvMediaScanner implements MediaScanner
         $tempPath = tempnam(sys_get_temp_dir(), 'tetranyble-scan-');
         if ($tempPath === false) {
             fclose($source);
+
             return MediaScanResult::failed('clamav', 'Unable to allocate a temporary scan file.');
         }
 

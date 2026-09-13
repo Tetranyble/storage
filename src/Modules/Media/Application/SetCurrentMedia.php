@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Versioning\Application\Contracts\CurrentMediaSelection;
 
@@ -29,7 +29,7 @@ class SetCurrentMedia
 
         $this->access->authorizeEdit($workspace, $media, $actor);
         $selected = $this->currentSelection->select($media);
-        
+
         $this->activityLogger->log(
             subject: $selected,
             type: 'storage.media.current.selected',

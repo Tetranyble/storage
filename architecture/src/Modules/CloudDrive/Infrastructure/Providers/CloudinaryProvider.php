@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers;
 
+use Cloudinary\Cloudinary;
 use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
@@ -17,7 +18,7 @@ final class CloudinaryProvider implements CloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['cloudinary/cloudinary_php' => \Cloudinary\Cloudinary::class];
+        return ['cloudinary/cloudinary_php' => Cloudinary::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

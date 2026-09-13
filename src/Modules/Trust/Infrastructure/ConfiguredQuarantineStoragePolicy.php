@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Modules\Trust\Infrastructure;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
 
 class ConfiguredQuarantineStoragePolicy implements QuarantineStoragePolicy

@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaRelocation;
 
 class RenameMedia
@@ -20,7 +20,7 @@ class RenameMedia
         $this->access->authorizeEdit($workspace, $media, $actor);
 
         $relocated = $this->relocation->rename($media, $name, $actor);
-        
+
         return $relocated;
     }
 }

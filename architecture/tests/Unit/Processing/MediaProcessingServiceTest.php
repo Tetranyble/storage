@@ -5,8 +5,12 @@ namespace Tetranyble\Storage\Tests\Unit\Processing;
 use Illuminate\Support\Str;
 use Mockery;
 use RuntimeException;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
+use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingService;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaPostProcessor;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaContentInspector;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaScanner;
@@ -15,12 +19,8 @@ use Tetranyble\Storage\Modules\Trust\Domain\DTO\MediaScanResult;
 use Tetranyble\Storage\Modules\Trust\Domain\DTO\MediaScanTarget;
 use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
 use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaScanFailedException;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaPostProcessor;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
-use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
 
 class MediaProcessingServiceTest extends PackageTestCase
 {

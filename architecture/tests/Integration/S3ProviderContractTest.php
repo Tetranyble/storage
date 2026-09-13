@@ -13,6 +13,7 @@ use Tetranyble\Storage\Tests\PackageTestCase;
 class S3ProviderContractTest extends PackageTestCase
 {
     private string $bucket;
+
     private string $endpoint;
 
     protected function setUp(): void

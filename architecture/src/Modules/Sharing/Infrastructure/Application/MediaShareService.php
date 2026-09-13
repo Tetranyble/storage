@@ -3,17 +3,17 @@
 namespace Tetranyble\Storage\Modules\Sharing\Infrastructure\Application;
 
 use Illuminate\Database\Eloquent\Model;
-use Tetranyble\Storage\Modules\Sharing\Application\Contracts\ShareUrlGenerator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use RuntimeException;
 use InvalidArgumentException;
-use Tetranyble\Storage\Modules\Sharing\Domain\Enums\ShareAccessLevel;
-use Tetranyble\Storage\Modules\Sharing\Domain\Policy\ShareAccessPolicy;
-use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\InvalidSharePasswordException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use RuntimeException;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Sharing\Application\Contracts\ShareUrlGenerator;
+use Tetranyble\Storage\Modules\Sharing\Domain\Enums\ShareAccessLevel;
+use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\InvalidSharePasswordException;
+use Tetranyble\Storage\Modules\Sharing\Domain\Policy\ShareAccessPolicy;
 use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
 
 class MediaShareService
@@ -42,7 +42,7 @@ class MediaShareService
         ?int $createdBy = null,
     ): MediaShare {
         if ((int) $folder->workspace_id !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         return $this->createShare($workspace, $folder, $accessLevel, $ttlMinutes, $maxDownloads, $password, $createdBy);
@@ -59,7 +59,7 @@ class MediaShareService
 
         if ($share->requires_password) {
             if (! $password || ! Hash::check($password, $share->password_hash)) {
-                throw new InvalidSharePasswordException();
+                throw new InvalidSharePasswordException;
             }
         }
     }

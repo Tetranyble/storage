@@ -5,10 +5,10 @@ namespace Tetranyble\Storage\Tests\Unit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaStoragePathResolverTest extends PackageTestCase

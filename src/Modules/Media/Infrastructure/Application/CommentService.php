@@ -2,16 +2,16 @@
 
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Application;
 
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 class CommentService
 {
@@ -37,7 +37,7 @@ class CommentService
 
         if ($parentComment) {
             if ((int) ($parentComment->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-                throw new ResourceNotFoundException();
+                throw new ResourceNotFoundException;
             }
             if ($parentComment->commentable_type !== $resource->getMorphClass()
                 || (int) $parentComment->commentable_id !== (int) $resource->getKey()) {
@@ -79,7 +79,7 @@ class CommentService
     public function deleteComment(Model $workspace, Comment $comment, Model $actor): void
     {
         if ((int) ($comment->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         $isOwner = (int) ($comment->user_id ?? 0) === (int) $actor->getKey();
@@ -90,7 +90,7 @@ class CommentService
 
         if (! $isOwner && ! $canModerate) {
             $this->recordCommentDenial('delete', $workspace, $comment, $actor);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
 
         $comment->delete();
@@ -156,15 +156,14 @@ class CommentService
     private function assertCommentOwner(Model $workspace, Comment $comment, Model $actor): void
     {
         if ((int) ($comment->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         if ((int) ($comment->user_id ?? 0) !== (int) $actor->getKey()) {
             $this->recordCommentDenial('modify', $workspace, $comment, $actor);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
     }
-
 
     private function recordCommentDenial(string $action, Model $workspace, Comment $comment, Model $actor): void
     {
@@ -181,7 +180,7 @@ class CommentService
     private function assertWorkspaceResource(Model $workspace, Model $resource): void
     {
         if ((int) ($resource->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 }

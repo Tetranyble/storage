@@ -2,16 +2,19 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Concerns\BelongsToStorageWorkspace;
-use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
+use Tetranyble\Storage\Http\AuthenticatedWorkspace;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Tetranyble\Storage\Http\AuthenticatedWorkspace;
 
 class StorageConfigTest extends PackageTestCase
 {
@@ -56,7 +59,7 @@ class StorageConfigTest extends PackageTestCase
 
     public function test_user_model_class_falls_back_to_laravel_auth_provider_model(): void
     {
-        config()->set('tetranyble-storage.models.user', \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::class);
+        config()->set('tetranyble-storage.models.user', User::class);
         config()->set('tetranyble-storage.workspace.guard', 'web');
         config()->set('auth.defaults.guard', 'web');
         config()->set('auth.guards.web.provider', 'users');
@@ -64,7 +67,6 @@ class StorageConfigTest extends PackageTestCase
 
         $this->assertSame(HostAuthUser::class, StorageConfig::userModelClass());
     }
-
 
     public function test_string_key_host_models_are_rejected_before_storage_operations(): void
     {
@@ -101,7 +103,7 @@ class StorageConfigTest extends PackageTestCase
     }
 }
 
-class HostWorkspaceModel extends \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace
+class HostWorkspaceModel extends Workspace
 {
     protected $table = 'workspaces';
 }
@@ -121,11 +123,11 @@ class HostUserWithWorkspaceSubject extends Authenticatable implements WorkspaceS
 
     protected $guarded = [];
 
-    public function getStorageWorkspace(): ?\Illuminate\Database\Eloquent\Model
+    public function getStorageWorkspace(): ?Model
     {
         $workspace = $this->getRelationValue('company');
 
-        return $workspace instanceof \Illuminate\Database\Eloquent\Model ? $workspace : null;
+        return $workspace instanceof Model ? $workspace : null;
     }
 
     public function getStorageWorkspaceIdentifier(): int|string|null
@@ -140,7 +142,6 @@ class HostAuthUser extends Authenticatable
 
     protected $guarded = [];
 }
-
 
 class HostStringKeyWorkspace extends HostWorkspaceModel
 {

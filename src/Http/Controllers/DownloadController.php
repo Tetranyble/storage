@@ -2,12 +2,12 @@
 
 namespace Tetranyble\Storage\Http\Controllers;
 
-use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
-use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
-use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
 use Tetranyble\Storage\Http\Responses\DownloadResponder;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 class DownloadController extends StorageController
@@ -46,9 +46,9 @@ class DownloadController extends StorageController
     public function zip(Request $request): Response
     {
         $request->validate([
-            'items'   => ['required', 'array', 'min:1', 'max:200'],
+            'items' => ['required', 'array', 'min:1', 'max:200'],
             'items.*' => ['required', 'string'],
-            'name'    => ['sometimes', 'string', 'max:200'],
+            'name' => ['sometimes', 'string', 'max:200'],
         ]);
 
         $workspace = $this->workspace($request);

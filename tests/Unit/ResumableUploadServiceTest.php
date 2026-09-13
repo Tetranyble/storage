@@ -2,27 +2,27 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
 use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
 use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
 use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\IncompleteUploadSessionException;
 use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\UploadSessionConflictException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
 use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSessionChunk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 class ResumableUploadServiceTest extends PackageTestCase
 {
@@ -33,7 +33,6 @@ class ResumableUploadServiceTest extends PackageTestCase
         Storage::fake('local');
         Storage::fake('public');
     }
-
 
     public function test_resumable_session_rejects_public_chunk_storage_when_quarantine_is_enabled(): void
     {
@@ -121,7 +120,6 @@ class ResumableUploadServiceTest extends PackageTestCase
             'status' => UploadSessionStatus::FINALIZED->value,
         ]);
     }
-
 
     public function test_resumable_service_rejects_oversized_declared_session_without_application_or_http_guard(): void
     {
@@ -579,7 +577,6 @@ class ResumableUploadServiceTest extends PackageTestCase
             'conflict_reason' => 'chunk_mismatch',
         ]);
     }
-
 
     public function test_chunk_storage_is_compensated_when_chunk_row_persistence_fails(): void
     {

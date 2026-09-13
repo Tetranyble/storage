@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers;
 
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
@@ -17,7 +18,7 @@ final class AzureBlobProvider implements CloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['azure-oss/storage-blob-flysystem' => \AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter::class];
+        return ['azure-oss/storage-blob-flysystem' => AzureBlobStorageAdapter::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

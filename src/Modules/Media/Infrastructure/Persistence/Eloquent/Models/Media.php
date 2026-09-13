@@ -2,35 +2,36 @@
 
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models;
 
-use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Mail\LaravelMediaMailService;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
-use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
-use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
-use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
-use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Contracts\Mail\Attachable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Mail\Attachment as MailAttachment;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
+use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Mail\LaravelMediaMailService;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
+use Tetranyble\Storage\Support\StorageConfig;
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $access_scope
  * @property mixed $archived_at
  * @property mixed $attribution
@@ -179,16 +180,18 @@ class Media extends Model implements Attachable
     public function getThumbnailUrlAttribute(): ?string
     {
         $thumbnail = $this->derivatives()
-            ->where('kind', \Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind::THUMBNAIL->value)
+            ->where('kind', MediaDerivativeKind::THUMBNAIL->value)
             ->where('is_primary', true)
             ->orderByDesc('id')
             ->first();
+        $disk = $thumbnail?->getAttribute('disk');
+        $path = $thumbnail?->getAttribute('path');
 
-        if (! $thumbnail || ! $thumbnail->getAttribute('disk') instanceof Disk) {
+        if (! $disk instanceof Disk || ! is_string($path)) {
             return null;
         }
 
-        return $this->fileSystem()->url($thumbnail->getAttribute('path'), $thumbnail->disk);
+        return $this->fileSystem()->url($path, $disk);
     }
 
     public function getFullPathAttribute(): string
@@ -301,6 +304,4 @@ class Media extends Model implements Attachable
 
         return $this->toSignedEmailLinkPayload($ttlMinutes)->toArray();
     }
-
-
 }

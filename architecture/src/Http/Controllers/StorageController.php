@@ -26,12 +26,14 @@ abstract class StorageController extends Controller
     {
         /** @var Model $workspace */
         $workspace = $this->workspace->requireWorkspace($request);
+
         return $workspace;
     }
 
     protected function actor(Request $request): ?Model
     {
         $actor = $this->workspace->currentActor($request);
+
         return $actor instanceof Model ? $actor : null;
     }
 
@@ -39,6 +41,7 @@ abstract class StorageController extends Controller
     {
         /** @var Media $media */
         $media = $this->routes->resolve(Media::class, $workspace, $key, $withTrashed);
+
         return $media;
     }
 
@@ -46,6 +49,7 @@ abstract class StorageController extends Controller
     {
         /** @var Folder $folder */
         $folder = $this->routes->resolve(Folder::class, $workspace, $key, $withTrashed);
+
         return $folder;
     }
 
@@ -53,6 +57,7 @@ abstract class StorageController extends Controller
     {
         /** @var MediaShare $share */
         $share = $this->routes->resolve(MediaShare::class, $workspace, $key);
+
         return $share;
     }
 
@@ -60,6 +65,7 @@ abstract class StorageController extends Controller
     {
         /** @var UploadSession $session */
         $session = $this->routes->resolve(UploadSession::class, $workspace, $key);
+
         return $session;
     }
 
@@ -67,6 +73,7 @@ abstract class StorageController extends Controller
     {
         /** @var DirectUploadSession $session */
         $session = $this->routes->resolve(DirectUploadSession::class, $workspace, $key);
+
         return $session;
     }
 
@@ -74,6 +81,7 @@ abstract class StorageController extends Controller
     {
         /** @var ConnectedDrive $drive */
         $drive = $this->routes->resolve(ConnectedDrive::class, $workspace, $key);
+
         return $drive;
     }
 

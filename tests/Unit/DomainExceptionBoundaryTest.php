@@ -5,16 +5,16 @@ namespace Tetranyble\Storage\Tests\Unit;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tetranyble\Storage\Http\Middleware\HandleStorageExceptions;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
-use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\InvalidSharePasswordException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\InvalidSharePasswordException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadLimitReachedException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadNotAllowedException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareExpiredException;
-use Tetranyble\Storage\Http\Middleware\HandleStorageExceptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class DomainExceptionBoundaryTest extends PackageTestCase
@@ -22,11 +22,11 @@ class DomainExceptionBoundaryTest extends PackageTestCase
     #[DataProvider('httpMappings')]
     public function test_http_boundary_maps_package_exceptions_to_expected_status(string $exceptionClass, int $status): void
     {
-        $middleware = new HandleStorageExceptions();
+        $middleware = new HandleStorageExceptions;
 
         try {
             $middleware->handle(Request::create('/storage'), function () use ($exceptionClass): never {
-                throw new $exceptionClass();
+                throw new $exceptionClass;
             });
             $this->fail('Expected package exception to be translated to an HTTP exception.');
         } catch (HttpException $exception) {
@@ -73,5 +73,4 @@ class DomainExceptionBoundaryTest extends PackageTestCase
             );
         }
     }
-
 }

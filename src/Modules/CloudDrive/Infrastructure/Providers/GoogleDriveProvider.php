@@ -3,6 +3,7 @@
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers;
 
 use Carbon\Carbon;
+use Google\Client;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -14,7 +15,9 @@ use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Mo
 final readonly class GoogleDriveProvider implements OAuthCloudProviderStrategy
 {
     private const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+
     private const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
     private const SCOPES = [
         'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/drive.file',
@@ -33,7 +36,7 @@ final readonly class GoogleDriveProvider implements OAuthCloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['google/apiclient' => \Google\Client::class];
+        return ['google/apiclient' => Client::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

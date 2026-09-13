@@ -31,13 +31,13 @@ foreach ($files as $file) {
 }
 
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\StorageException as SharedStorageException;
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Aggregates\DirectUploadLifecycle;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\StorageException as SharedStorageException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Enums\ShareAccessLevel;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadLimitReachedException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Policy\ShareAccessPolicy;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\Upload\Domain\Aggregates\ResumableUploadLifecycle;
 use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
 use Tetranyble\Storage\Modules\Versioning\Domain\Aggregates\VersionGroup;
@@ -71,7 +71,7 @@ $check($resumable->status() === UploadSessionStatus::FINALIZED, 'resumable happy
 
 $share = new ShareAccessPolicy(ShareAccessLevel::DOWNLOAD, null, 1, 1, false);
 try {
-    $share->assertAccessible(new DateTimeImmutable());
+    $share->assertAccessible(new DateTimeImmutable);
     $check(false, 'share download limit must reject exhausted shares');
 } catch (ShareDownloadLimitReachedException) {
     // expected

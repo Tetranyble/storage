@@ -2,21 +2,20 @@
 
 namespace Tetranyble\Storage\Modules\Download\Infrastructure\Application;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
-use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
-
-use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\DownloadPayload;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\DownloadPayload;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use ZipArchive;
 
 /**
@@ -33,7 +32,7 @@ use ZipArchive;
 class DownloadService
 {
     public function __construct(
-        private readonly FileSystemContract    $files,
+        private readonly FileSystemContract $files,
         private readonly ConnectedDriveService $drives,
         private readonly ResourceAccessControl $access,
         private readonly ?MediaDeliveryGuard $delivery = null,
@@ -52,9 +51,9 @@ class DownloadService
         $this->authorizeMedia($workspace, $media, $actor);
         $this->assertDeliverable($media);
 
-        $binary   = $this->files->get((string) $media->path, $media->disk);
+        $binary = $this->files->get((string) $media->path, $media->disk);
         $filename = $media->original_name ?? basename((string) $media->path);
-        $mime     = $media->mime_type ?? 'application/octet-stream';
+        $mime = $media->mime_type ?? 'application/octet-stream';
 
         return new DownloadPayload($binary, $filename, $mime);
     }
@@ -67,27 +66,28 @@ class DownloadService
      * @return array{download: DownloadPayload, zipped: int, skipped: int}
      */
     public function zipMedia(
-        Model   $workspace,
-        array   $mediaItems,
-        ?Model  $actor = null,
-        string  $archiveName = 'download',
+        Model $workspace,
+        array $mediaItems,
+        ?Model $actor = null,
+        string $archiveName = 'download',
     ): array {
         $this->requireZipArchive();
 
         $tmpPath = sys_get_temp_dir().'/'.Str::uuid().'.zip';
-        $zip     = $this->openZip($tmpPath);
-        $zipped  = 0;
+        $zip = $this->openZip($tmpPath);
+        $zipped = 0;
         $skipped = 0;
 
         foreach ($mediaItems as $media) {
             if (! $this->canViewMedia($workspace, $media, $actor)
                 || ! $this->canDeliver($media)) {
                 $skipped++;
+
                 continue;
             }
 
             try {
-                $binary   = $this->files->get((string) $media->path, $media->disk);
+                $binary = $this->files->get((string) $media->path, $media->disk);
                 $filename = $this->uniqueFilename($zip, $media->original_name ?? basename((string) $media->path));
                 $zip->addFromString($filename, $binary);
                 $zipped++;
@@ -111,13 +111,13 @@ class DownloadService
      * Stream a single remote file from a connected drive.
      */
     public function downloadFromDrive(
-        Model          $workspace,
+        Model $workspace,
         ConnectedDrive $drive,
-        string         $remoteFileId,
+        string $remoteFileId,
     ): DownloadPayload {
-        $adapter  = $this->drives->adapterFor($drive);
-        $meta     = $adapter->getMetadata($remoteFileId);
-        $binary   = $adapter->getFileBinary($remoteFileId);
+        $adapter = $this->drives->adapterFor($drive);
+        $meta = $adapter->getMetadata($remoteFileId);
+        $binary = $adapter->getFileBinary($remoteFileId);
 
         return new DownloadPayload($binary, $meta->name, $meta->mimeType ?? 'application/octet-stream');
     }
@@ -130,17 +130,17 @@ class DownloadService
      * @return array{download: DownloadPayload, zipped: int, skipped: int}
      */
     public function zipFromDrive(
-        Model          $workspace,
+        Model $workspace,
         ConnectedDrive $drive,
-        array          $remoteFileIds,
-        string         $archiveName = 'download',
+        array $remoteFileIds,
+        string $archiveName = 'download',
     ): array {
         $this->requireZipArchive();
 
         $tmpPath = sys_get_temp_dir().'/'.Str::uuid().'.zip';
-        $zip     = $this->openZip($tmpPath);
+        $zip = $this->openZip($tmpPath);
         $adapter = $this->drives->adapterFor($drive);
-        $zipped  = 0;
+        $zipped = 0;
         $skipped = 0;
 
         foreach ($remoteFileIds as $fileId) {
@@ -151,7 +151,7 @@ class DownloadService
                     $added = $this->addFolderToZip($zip, $adapter, $fileId, $meta->name);
                     $zipped += $added;
                 } else {
-                    $binary   = $adapter->getFileBinary($fileId);
+                    $binary = $adapter->getFileBinary($fileId);
                     $filename = $this->uniqueFilename($zip, $meta->name);
                     $zip->addFromString($filename, $binary);
                     $zipped++;
@@ -175,20 +175,21 @@ class DownloadService
     private function authorizeMedia(Model $workspace, Media $media, ?Model $actor): void
     {
         if ((int) ($media->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         // WORKSPACE-scoped: any authenticated workspace member may download
         if ($media->access_scope === AccessScope::WORKSPACE) {
             if (! $actor) {
-                throw new AuthenticationRequiredException();
+                throw new AuthenticationRequiredException;
             }
+
             return;
         }
 
         // RESTRICTED: explicit ACL check required
         if (! $actor) {
-            throw new AuthenticationRequiredException();
+            throw new AuthenticationRequiredException;
         }
 
         $this->access->authorizeView($workspace, $media, $actor);
@@ -211,6 +212,7 @@ class DownloadService
     {
         if ($this->delivery) {
             $this->delivery->assertDeliverable($media);
+
             return;
         }
 
@@ -244,7 +246,7 @@ class DownloadService
                 $added += $this->addFolderToZip($zip, $adapter, $item->id, $zipPrefix.'/'.$item->name);
             } else {
                 try {
-                    $binary   = $adapter->getFileBinary($item->id);
+                    $binary = $adapter->getFileBinary($item->id);
                     $filename = $this->uniqueFilename($zip, $zipPrefix.'/'.$item->name);
                     $zip->addFromString($filename, $binary);
                     $added++;
@@ -267,7 +269,7 @@ class DownloadService
 
     private function openZip(string $tmpPath): ZipArchive
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($tmpPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('Could not create temporary zip archive.');
@@ -292,8 +294,8 @@ class DownloadService
             return $name;
         }
 
-        $ext    = pathinfo($name, PATHINFO_EXTENSION);
-        $base   = $ext ? substr($name, 0, -(strlen($ext) + 1)) : $name;
+        $ext = pathinfo($name, PATHINFO_EXTENSION);
+        $base = $ext ? substr($name, 0, -(strlen($ext) + 1)) : $name;
         $suffix = 1;
 
         do {

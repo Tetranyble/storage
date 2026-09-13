@@ -2,52 +2,57 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access\AccessControlService;
+use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
+use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access\AccessControlService;
 use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Support\Str;
 
 class AccessControlTransferOwnershipTest extends PackageTestCase
 {
     private AccessControlService $service;
+
     private Workspace $workspace;
+
     private User $owner;
+
     private User $newOwner;
+
     private Folder $folder;
+
     private Media $media;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new AccessControlService();
+        $this->service = new AccessControlService;
 
-        $this->workspace   = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
-        $this->owner    = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $this->workspace = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
+        $this->owner = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
         $this->newOwner = User::create(['name' => 'Bob',   'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
         $this->folder = Folder::create([
-            'workspace_id'  => $this->workspace->id,
+            'workspace_id' => $this->workspace->id,
             'created_by' => $this->owner->id,
-            'name'       => 'Root',
-            'slug'       => 'root',
-            'path'       => '/',
-            'uuid'       => Str::uuid(),
+            'name' => 'Root',
+            'slug' => 'root',
+            'path' => '/',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->media = Media::create([
-            'workspace_id'   => $this->workspace->id,
-            'folder_id'   => $this->folder->id,
-            'uuid'        => Str::uuid(),
-            'disk'        => 'public',
-            'path'        => 'doc.pdf',
+            'workspace_id' => $this->workspace->id,
+            'folder_id' => $this->folder->id,
+            'uuid' => Str::uuid(),
+            'disk' => 'public',
+            'path' => 'doc.pdf',
             'uploaded_by' => $this->owner->id,
         ]);
     }
@@ -119,14 +124,14 @@ class AccessControlTransferOwnershipTest extends PackageTestCase
 
     public function test_transfer_throws_for_wrong_workspace(): void
     {
-        $other  = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
+        $other = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $folder = Folder::create([
-            'workspace_id'  => $other->id,
+            'workspace_id' => $other->id,
             'created_by' => $this->owner->id,
-            'name'       => 'Other Root',
-            'slug'       => 'other-root',
-            'path'       => '/other',
-            'uuid'       => Str::uuid(),
+            'name' => 'Other Root',
+            'slug' => 'other-root',
+            'path' => '/other',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->expectException(ResourceNotFoundException::class);

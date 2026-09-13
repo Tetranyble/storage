@@ -2,37 +2,41 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Illuminate\Support\Str;
+use Mockery;
+use Mockery\MockInterface;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\TransferResult;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Support\Str;
-use Mockery;
-use Mockery\MockInterface;
 
 class CrossDriveTransferTest extends PackageTestCase
 {
     private MockInterface $oauth;
+
     private MockInterface $files;
+
     private MockInterface $storage;
+
     private ConnectedDriveService $service;
+
     private Workspace $workspace;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->oauth   = Mockery::mock(OAuthService::class);
-        $this->files   = Mockery::mock(FileSystemContract::class);
+        $this->oauth = Mockery::mock(OAuthService::class);
+        $this->files = Mockery::mock(FileSystemContract::class);
         $this->storage = Mockery::mock(StorageService::class);
 
         $this->workspace = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
@@ -46,7 +50,7 @@ class CrossDriveTransferTest extends PackageTestCase
     {
         [$from, $to, $fromAdapter, $toAdapter] = $this->twoSeparateDrives();
 
-        $meta   = $this->file('file-1', 'report.pdf', 'application/pdf', 1024);
+        $meta = $this->file('file-1', 'report.pdf', 'application/pdf', 1024);
         $copied = $this->file('file-2', 'report.pdf', 'application/pdf', 1024);
 
         $fromAdapter->shouldReceive('getMetadata')->with('file-1')->once()->andReturn($meta);
@@ -63,7 +67,7 @@ class CrossDriveTransferTest extends PackageTestCase
     {
         [$from, $to, $fromAdapter, $toAdapter] = $this->twoSeparateDrives();
 
-        $meta   = $this->file('file-1', 'original.pdf', 'application/pdf', 512);
+        $meta = $this->file('file-1', 'original.pdf', 'application/pdf', 512);
         $copied = $this->file('file-3', 'renamed.pdf', 'application/pdf', 512);
 
         $fromAdapter->shouldReceive('getMetadata')->andReturn($meta);
@@ -88,7 +92,7 @@ class CrossDriveTransferTest extends PackageTestCase
     {
         [$drive, $adapter] = $this->oneDrive();
 
-        $meta   = $this->file('orig-id', 'photo.jpg', 'image/jpeg', 2048);
+        $meta = $this->file('orig-id', 'photo.jpg', 'image/jpeg', 2048);
         $copied = $this->file('copy-id', 'photo.jpg', 'image/jpeg', 2048);
 
         $adapter->shouldReceive('getMetadata')->with('orig-id')->once()->andReturn($meta);
@@ -114,7 +118,7 @@ class CrossDriveTransferTest extends PackageTestCase
     {
         [$drive, $adapter] = $this->oneDrive();
 
-        $meta  = $this->file('orig-id', 'doc.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 512);
+        $meta = $this->file('orig-id', 'doc.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 512);
         $moved = $this->file('orig-id', 'doc.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 512);
 
         $adapter->shouldReceive('getMetadata')->with('orig-id')->once()->andReturn($meta);
@@ -138,7 +142,7 @@ class CrossDriveTransferTest extends PackageTestCase
     {
         [$from, $to, $fromAdapter, $toAdapter] = $this->twoSeparateDrives();
 
-        $meta   = $this->file('src-id', 'file.txt', 'text/plain', 100);
+        $meta = $this->file('src-id', 'file.txt', 'text/plain', 100);
         $copied = $this->file('dst-id', 'file.txt', 'text/plain', 100);
 
         $fromAdapter->shouldReceive('getMetadata')->andReturn($meta);
@@ -162,7 +166,7 @@ class CrossDriveTransferTest extends PackageTestCase
 
         $rootMeta = $this->folder('src-root', 'Documents');
         $fileMeta = $this->file('src-file', 'readme.md', 'text/markdown', 200);
-        $subMeta  = $this->folder('src-sub', 'Sub');
+        $subMeta = $this->folder('src-sub', 'Sub');
 
         // Source: root folder has one file and one subfolder
         $fromAdapter->shouldReceive('getMetadata')->with('src-root')->andReturn($rootMeta);
@@ -200,7 +204,7 @@ class CrossDriveTransferTest extends PackageTestCase
         [$from, $to, $fromAdapter, $toAdapter] = $this->twoSeparateDrives();
 
         $rootMeta = $this->folder('src-root', 'Docs');
-        $badFile  = $this->file('bad-id', 'corrupt.bin', 'application/octet-stream', 0);
+        $badFile = $this->file('bad-id', 'corrupt.bin', 'application/octet-stream', 0);
 
         $fromAdapter->shouldReceive('getMetadata')->with('src-root')->andReturn($rootMeta);
         $fromAdapter->shouldReceive('listFolder')->with('src-root')->andReturn([$badFile]);
@@ -244,7 +248,7 @@ class CrossDriveTransferTest extends PackageTestCase
         [$from, $to, $fromAdapter, $toAdapter] = $this->twoSeparateDrives();
 
         $rootMeta = $this->folder('src-root', 'Important');
-        $badFile  = $this->file('f1', 'data.csv', 'text/csv', 100);
+        $badFile = $this->file('f1', 'data.csv', 'text/csv', 100);
 
         $fromAdapter->shouldReceive('getMetadata')->with('src-root')->andReturn($rootMeta);
         $fromAdapter->shouldReceive('listFolder')->andReturn([$badFile]);
@@ -264,7 +268,7 @@ class CrossDriveTransferTest extends PackageTestCase
 
     public function test_transfer_result_to_array(): void
     {
-        $root   = $this->folder('id', 'Folder');
+        $root = $this->folder('id', 'Folder');
         $result = new TransferResult($root, filesCopied: 3, foldersCreated: 2, errors: []);
 
         $arr = $result->toArray();
@@ -294,21 +298,21 @@ class CrossDriveTransferTest extends PackageTestCase
     private function makeDrive(string $name = 'Drive'): ConnectedDrive
     {
         return ConnectedDrive::create([
-            'uuid'      => Str::uuid(),
+            'uuid' => Str::uuid(),
             'workspace_id' => $this->workspace->id,
-            'provider'  => CloudProvider::GOOGLE_DRIVE,
-            'name'      => $name,
-            'status'    => ConnectedDriveStatus::CONNECTED,
+            'provider' => CloudProvider::GOOGLE_DRIVE,
+            'name' => $name,
+            'status' => ConnectedDriveStatus::CONNECTED,
         ]);
     }
 
     /** Two drives with their mocked adapters: [$from, $to, $fromAdapter, $toAdapter] */
     private function twoSeparateDrives(): array
     {
-        $from        = $this->makeDrive('From');
-        $to          = $this->makeDrive('To');
+        $from = $this->makeDrive('From');
+        $to = $this->makeDrive('To');
         $fromAdapter = $this->basicAdapter();
-        $toAdapter   = $this->basicAdapter();
+        $toAdapter = $this->basicAdapter();
 
         return [$from, $to, $fromAdapter, $toAdapter];
     }
@@ -316,7 +320,7 @@ class CrossDriveTransferTest extends PackageTestCase
     /** A single drive with a native-capable adapter: [$drive, $adapter] */
     private function oneDrive(): array
     {
-        $drive   = $this->makeDrive('Single');
+        $drive = $this->makeDrive('Single');
         $adapter = $this->nativeAdapter();
 
         return [$drive, $adapter];
@@ -327,10 +331,10 @@ class CrossDriveTransferTest extends PackageTestCase
      * Pass the same adapter for both $from and $to for same-drive scenarios.
      */
     private function makeService(
-        MockInterface  $fromAdapter,
-        MockInterface  $toAdapter,
+        MockInterface $fromAdapter,
+        MockInterface $toAdapter,
         ?ConnectedDrive $fromDrive = null,
-        ?ConnectedDrive $toDrive   = null,
+        ?ConnectedDrive $toDrive = null,
     ): ConnectedDriveService {
         $svc = Mockery::mock(
             ConnectedDriveService::class,
@@ -347,6 +351,7 @@ class CrossDriveTransferTest extends PackageTestCase
                 if ($fromDrive !== null && $drive->id === $fromDrive->id) {
                     return $fromAdapter;
                 }
+
                 return $toAdapter;
             });
 

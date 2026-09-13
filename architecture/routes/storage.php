@@ -1,12 +1,12 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Tetranyble\Storage\Http\Controllers\BulkMediaController;
 use Tetranyble\Storage\Http\Controllers\ChunkedMediaUploadController;
-use Tetranyble\Storage\Http\Controllers\DownloadController;
 use Tetranyble\Storage\Http\Controllers\DirectUploadController;
+use Tetranyble\Storage\Http\Controllers\DownloadController;
 use Tetranyble\Storage\Http\Controllers\MediaController;
 use Tetranyble\Storage\Http\Controllers\MediaLibraryController;
-use Tetranyble\Storage\Http\Controllers\BulkMediaController;
 use Tetranyble\Storage\Http\Controllers\MediaShareController;
 use Tetranyble\Storage\Http\Controllers\MediaTransferController;
 use Tetranyble\Storage\Http\Middleware\AddStorageSecurityHeaders;

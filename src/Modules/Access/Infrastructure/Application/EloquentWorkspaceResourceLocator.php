@@ -19,6 +19,7 @@ final class EloquentWorkspaceResourceLocator implements WorkspaceResourceLocator
             || (! $allowTrashed && $media->trashed())) {
             $this->notFound($media::class, $media instanceof Model ? $media->getKey() : null);
         }
+
         return $media;
     }
 
@@ -30,6 +31,7 @@ final class EloquentWorkspaceResourceLocator implements WorkspaceResourceLocator
             || (! $allowTrashed && $folder->trashed())) {
             $this->notFound($folder::class, $folder instanceof Model ? $folder->getKey() : null);
         }
+
         return $folder;
     }
 
@@ -44,6 +46,7 @@ final class EloquentWorkspaceResourceLocator implements WorkspaceResourceLocator
         if (! $folder instanceof Folder) {
             $this->notFound(Folder::class, $folderId);
         }
+
         return $folder;
     }
 
@@ -52,6 +55,7 @@ final class EloquentWorkspaceResourceLocator implements WorkspaceResourceLocator
         if (! $value instanceof Model) {
             throw new InvalidArgumentException("Expected {$label} to be an Eloquent model.");
         }
+
         return $value;
     }
 

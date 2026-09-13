@@ -3,40 +3,41 @@
 namespace Tetranyble\Storage\Modules\DirectUpload\Infrastructure;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
-use Throwable;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\Contracts\DirectUploadGateway;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\Aggregates\DirectUploadLifecycle;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadObject;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadPart;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadStartResult;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\Aggregates\DirectUploadLifecycle;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\Contracts\DirectUploadGateway;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadObject;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Exceptions\DirectUploadConflictException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\ResumableUploadOptionsCodec;
-use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\ResumableUploadOptionsCodec;
+use Tetranyble\Storage\Support\StorageConfig;
+use Throwable;
 
 final class DirectUploadService
 {
     private const S3_MIN_PART_SIZE = 5 * 1024 * 1024;
+
     private const S3_MAX_PARTS = 10_000;
 
     public function __construct(
@@ -79,9 +80,7 @@ final class DirectUploadService
         $directory = $this->paths->uploadDirectory($options, $workspace);
         $filename = $this->paths->storedFilename($originalName, $options->preserveFilename);
         $objectKey = trim($directory.'/direct/'.$sessionUuid.'/'.$filename, '/');
-        $expiresAt = $request->expiresAt
-            ? \Illuminate\Support\Carbon::instance(\DateTimeImmutable::createFromInterface($request->expiresAt))
-            : now()->addMinutes($this->sessionTtlMinutes());
+        $expiresAt = $request->expiresAt ? Carbon::instance(\DateTimeImmutable::createFromInterface($request->expiresAt)) : now()->addMinutes($this->sessionTtlMinutes());
         $urlTtl = max(60, min($this->urlTtlSeconds(), max(60, now()->diffInSeconds($expiresAt, false))));
         $partSize = $this->resolvePartSize($request->partSize);
 

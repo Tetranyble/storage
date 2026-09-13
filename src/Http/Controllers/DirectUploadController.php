@@ -2,22 +2,24 @@
 
 namespace Tetranyble\Storage\Http\Controllers;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
 use Tetranyble\Storage\Modules\DirectUpload\Application\CancelDirectUpload;
+use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
 use Tetranyble\Storage\Modules\DirectUpload\Application\FinalizeDirectUpload;
 use Tetranyble\Storage\Modules\DirectUpload\Application\GetDirectUpload;
 use Tetranyble\Storage\Modules\DirectUpload\Application\RefreshDirectUpload;
 use Tetranyble\Storage\Modules\DirectUpload\Application\StartDirectUpload;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
-use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
-use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 
 final class DirectUploadController extends StorageController
 {
@@ -69,7 +71,7 @@ final class DirectUploadController extends StorageController
                     directory: (string) ($validated['directory'] ?? 'media'),
                     purpose: isset($validated['purpose']) ? MediaPurpose::from($validated['purpose']) : MediaPurpose::GENERAL,
                     label: $validated['description'] ?? null,
-                    strategy: \Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy::DIRECT,
+                    strategy: UploadStrategy::DIRECT,
                     module: (string) ($validated['module'] ?? 'media'),
                     customProperties: (array) ($validated['custom_properties'] ?? []),
                     replaceExisting: (bool) ($validated['replace_existing'] ?? false),
@@ -165,7 +167,7 @@ final class DirectUploadController extends StorageController
         return $this->success('Direct upload cancelled.');
     }
 
-    private function sessionPayload(?\Illuminate\Database\Eloquent\Model $session, ?DirectUploadProviderPlan $plan): array
+    private function sessionPayload(?Model $session, ?DirectUploadProviderPlan $plan): array
     {
         return [
             'uuid' => $session?->getAttribute('uuid'),

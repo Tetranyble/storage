@@ -3,19 +3,22 @@
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
 use Carbon\Carbon;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\GcsAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\DirectoryListing;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemOperator;
+use League\Flysystem\UnableToReadFile;
 use Mockery;
 use Mockery\MockInterface;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\GcsAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class GcsAdapterTest extends PackageTestCase
 {
     private MockInterface $fs;
-    private GcsAdapter    $adapter;
+
+    private GcsAdapter $adapter;
 
     protected function setUp(): void
     {
@@ -26,7 +29,7 @@ class GcsAdapterTest extends PackageTestCase
         // Instantiate with dummy credentials — we inject the filesystem for tests
         $this->adapter = new GcsAdapter(
             keyFile: ['type' => 'service_account', 'project_id' => 'test'],
-            bucket:  'test-bucket',
+            bucket: 'test-bucket',
         );
         $this->adapter->setFilesystem($this->fs);
     }
@@ -75,7 +78,7 @@ class GcsAdapterTest extends PackageTestCase
     public function test_get_file_binary_throws_for_missing(): void
     {
         $this->fs->allows('read')
-            ->andThrow(new \League\Flysystem\UnableToReadFile('missing.png'));
+            ->andThrow(new UnableToReadFile('missing.png'));
 
         $this->expectException(\RuntimeException::class);
 
@@ -168,9 +171,9 @@ class GcsAdapterTest extends PackageTestCase
     // Helpers
     // ---------------------------------------------------------------
 
-    private function makeListing(array $items): \League\Flysystem\DirectoryListing
+    private function makeListing(array $items): DirectoryListing
     {
-        return new \League\Flysystem\DirectoryListing(new \ArrayIterator($items));
+        return new DirectoryListing(new \ArrayIterator($items));
     }
 
     protected function tearDown(): void

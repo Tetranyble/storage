@@ -5,12 +5,13 @@ namespace Tetranyble\Storage\Modules\DirectUpload\Application\Contracts;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadStartResult;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadPart;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
 
 interface DirectUploadManager
 {
     public function start(DirectUploadRequest $request): DirectUploadStartResult;
 
-    public function refresh(object $session, array $partNumbers = []): \Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
+    public function refresh(object $session, array $partNumbers = []): DirectUploadProviderPlan;
 
     /** @return list<DirectUploadPart> */
     public function signParts(object $session, array $partNumbers): array;

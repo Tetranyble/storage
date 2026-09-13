@@ -2,13 +2,14 @@
 
 namespace Tetranyble\Storage\Facades;
 
+use Illuminate\Support\Facades\Facade;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
+use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access\AccessControlService;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Illuminate\Support\Facades\Facade;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 
 /**
  * @method static void grant(Workspace $workspace, Media|Folder $resource, User $user, CollaboratorRole $role, ?User $grantedBy = null)
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static void authorizeEdit(Workspace $workspace, Media|Folder $resource, User $user)
  * @method static void transferOwnership(Workspace $workspace, Media|Folder $resource, User $newOwner, User $actor)
  *
- * @see \Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access\AccessControlService
+ * @see AccessControlService
  */
 class MediaAccess extends Facade
 {

@@ -2,17 +2,18 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models;
 
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\ResolvesConfiguredStorageModels;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\ResolvesConfiguredStorageModels;
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $default_slot
  * @property mixed $is_default
  * @property mixed $name
@@ -49,15 +50,15 @@ class ConnectedDrive extends Model
     ];
 
     protected $casts = [
-        'provider'         => CloudProvider::class,
-        'status'           => ConnectedDriveStatus::class,
+        'provider' => CloudProvider::class,
+        'status' => ConnectedDriveStatus::class,
         'token_expires_at' => 'datetime',
-        'connected_at'     => 'datetime',
-        'is_default'       => 'boolean',
-        'access_scope'     => AccessScope::class,
-        'access_token'     => 'encrypted',
-        'refresh_token'    => 'encrypted',
-        'credentials'      => 'encrypted:array',
+        'connected_at' => 'datetime',
+        'is_default' => 'boolean',
+        'access_scope' => AccessScope::class,
+        'access_token' => 'encrypted',
+        'refresh_token' => 'encrypted',
+        'credentials' => 'encrypted:array',
     ];
 
     protected $hidden = [
@@ -111,7 +112,7 @@ class ConnectedDrive extends Model
     public function markError(string $message): void
     {
         $this->forceFill([
-            'status'     => ConnectedDriveStatus::ERROR,
+            'status' => ConnectedDriveStatus::ERROR,
             'last_error' => $message,
         ])->save();
     }
@@ -119,8 +120,8 @@ class ConnectedDrive extends Model
     public function markConnected(): void
     {
         $this->forceFill([
-            'status'       => ConnectedDriveStatus::CONNECTED,
-            'last_error'   => null,
+            'status' => ConnectedDriveStatus::CONNECTED,
+            'last_error' => null,
             'connected_at' => now(),
         ])->save();
     }

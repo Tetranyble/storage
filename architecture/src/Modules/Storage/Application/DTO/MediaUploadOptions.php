@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\Storage\Application\DTO;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 
 readonly class MediaUploadOptions
 {

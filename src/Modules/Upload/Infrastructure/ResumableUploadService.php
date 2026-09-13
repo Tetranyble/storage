@@ -2,32 +2,29 @@
 
 namespace Tetranyble\Storage\Modules\Upload\Infrastructure;
 
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
-use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Support\StorageConfig;
-use Tetranyble\Storage\Modules\Upload\Domain\Aggregates\ResumableUploadLifecycle;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
-use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\IncompleteUploadSessionException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
-use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\UploadSessionConflictException;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSessionChunk;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
+use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
+use Tetranyble\Storage\Modules\Upload\Domain\Aggregates\ResumableUploadLifecycle;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
+use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\IncompleteUploadSessionException;
+use Tetranyble\Storage\Modules\Upload\Domain\Exceptions\UploadSessionConflictException;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
+use Tetranyble\Storage\Support\StorageConfig;
 
 class ResumableUploadService
 {
@@ -88,23 +85,23 @@ class ResumableUploadService
 
         try {
             return UploadSession::query()->create([
-            'workspace_id' => $workspaceId,
-            'user_id' => $upload->userId,
-            'folder_id' => $upload->folderId,
-            'identifier' => $options->identifier,
-            'active_identifier_hash' => $activeIdentifierHash,
-            'fingerprint' => $fingerprint,
-            'original_name' => $options->originalName(),
-            'mime_type' => $options->mimeType,
-            'disk' => $sessionDisk->value,
-            'status' => UploadSessionStatus::PENDING,
-            'total_chunks' => $options->totalChunks,
-            'total_size' => $options->totalSize,
-            'chunk_size' => $options->chunkSize,
-            'received_chunks' => 0,
-            'received_bytes' => 0,
-            'upload_options' => $this->optionsCodec->serialize($upload),
-            'session_expires_at' => $options->expiresAt,
+                'workspace_id' => $workspaceId,
+                'user_id' => $upload->userId,
+                'folder_id' => $upload->folderId,
+                'identifier' => $options->identifier,
+                'active_identifier_hash' => $activeIdentifierHash,
+                'fingerprint' => $fingerprint,
+                'original_name' => $options->originalName(),
+                'mime_type' => $options->mimeType,
+                'disk' => $sessionDisk->value,
+                'status' => UploadSessionStatus::PENDING,
+                'total_chunks' => $options->totalChunks,
+                'total_size' => $options->totalSize,
+                'chunk_size' => $options->chunkSize,
+                'received_chunks' => 0,
+                'received_bytes' => 0,
+                'upload_options' => $this->optionsCodec->serialize($upload),
+                'session_expires_at' => $options->expiresAt,
             ]);
         } catch (QueryException $exception) {
             // The unique active-session key closes the first-request race. If
@@ -128,7 +125,7 @@ class ResumableUploadService
 
     public function appendChunk(
         Model $session,
-        IncomingFile|\Illuminate\Http\UploadedFile $chunk,
+        IncomingFile|UploadedFile $chunk,
         int $chunkNumber,
         ?string $checksum = null,
     ): UploadSession {
@@ -829,10 +826,10 @@ class ResumableUploadService
         $disk = $this->diskForSession($session);
 
         foreach ($session->chunks()->get() as $chunk) {
-            if ($chunk->getAttribute('path')) {
+            if (is_string($path = $chunk->getAttribute('path')) && $path !== '') {
                 $this->orphans->deleteOrTrack(
                     $disk,
-                    (string) $chunk->path,
+                    $path,
                     $session->workspace_id ? (int) $session->workspace_id : null,
                     $chunk->getAttribute('size') ? (int) $chunk->getAttribute('size') : null,
                     'upload_chunk_cleanup',

@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\Storage\Infrastructure;
 
-use Throwable;
+use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
+use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Domain\Policy\OrphanCleanupRetryPolicy;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
-use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
-use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Throwable;
 
 /**
  * Durable registry for physical objects whose owning DB mutation has already

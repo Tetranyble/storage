@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 
@@ -96,8 +96,8 @@ final class LargeWorkspaceFixture
 
         if ($grantCount > 0) {
             $grants = [];
-            $folderMorph = (new Folder())->getMorphClass();
-            $mediaMorph = (new Media())->getMorphClass();
+            $folderMorph = (new Folder)->getMorphClass();
+            $mediaMorph = (new Media)->getMorphClass();
             $folderGrantBudget = intdiv($grantCount, 2);
 
             $restrictedFolders = Folder::query()

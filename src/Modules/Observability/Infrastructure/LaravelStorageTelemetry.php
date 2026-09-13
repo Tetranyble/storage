@@ -4,9 +4,9 @@ namespace Tetranyble\Storage\Modules\Observability\Infrastructure;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Psr\Log\LoggerInterface;
+use Tetranyble\Storage\Events\StorageTelemetryRecorded;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
-use Tetranyble\Storage\Events\StorageTelemetryRecorded;
 use Throwable;
 
 final class LaravelStorageTelemetry implements StorageTelemetry
@@ -71,7 +71,7 @@ final class LaravelStorageTelemetry implements StorageTelemetry
                     value: $value,
                     context: $context,
                     level: $level->value,
-                    occurredAt: new \DateTimeImmutable(),
+                    occurredAt: new \DateTimeImmutable,
                 ));
             } catch (Throwable) {
                 // A host monitoring listener must not break uploads/downloads.

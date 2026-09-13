@@ -3,12 +3,12 @@
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters;
 
 use Carbon\Carbon;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 
 /**
  * CloudAdapter backed by a configured Laravel filesystem disk.
@@ -31,21 +31,21 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
         $prefix = ($folderId === 'root') ? '' : rtrim($folderId, '/').'/';
 
         $directories = $this->disk->directories($prefix === '' ? null : $prefix);
-        $files       = $this->disk->files($prefix === '' ? null : $prefix);
+        $files = $this->disk->files($prefix === '' ? null : $prefix);
 
         $results = [];
 
         foreach ($directories as $dir) {
             $results[] = new CloudFile(
-                id:           $dir,
-                name:         basename($dir),
-                isFolder:     true,
-                size:         null,
-                mimeType:     null,
-                webViewLink:  null,
+                id: $dir,
+                name: basename($dir),
+                isFolder: true,
+                size: null,
+                mimeType: null,
+                webViewLink: null,
                 thumbnailUrl: null,
-                modifiedAt:   null,
-                parentId:     $prefix === '' ? 'root' : $prefix,
+                modifiedAt: null,
+                parentId: $prefix === '' ? 'root' : $prefix,
             );
         }
 
@@ -53,15 +53,15 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
             $lastMod = $this->disk->lastModified($file);
 
             $results[] = new CloudFile(
-                id:           $file,
-                name:         basename($file),
-                isFolder:     false,
-                size:         $this->disk->size($file) ?: null,
-                mimeType:     $this->disk->mimeType($file) ?: null,
-                webViewLink:  $this->publicUrl($file),
+                id: $file,
+                name: basename($file),
+                isFolder: false,
+                size: $this->disk->size($file) ?: null,
+                mimeType: $this->disk->mimeType($file) ?: null,
+                webViewLink: $this->publicUrl($file),
                 thumbnailUrl: null,
-                modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
-                parentId:     $prefix === '' ? 'root' : $prefix,
+                modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+                parentId: $prefix === '' ? 'root' : $prefix,
             );
         }
 
@@ -86,15 +86,15 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
         $this->disk->put($path, $binary);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     false,
-            size:         strlen($binary),
-            mimeType:     $mimeType,
-            webViewLink:  $this->publicUrl($path),
+            id: $path,
+            name: $name,
+            isFolder: false,
+            size: strlen($binary),
+            mimeType: $mimeType,
+            webViewLink: $this->publicUrl($path),
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $folderId,
+            modifiedAt: Carbon::now(),
+            parentId: $folderId,
         );
     }
 
@@ -114,29 +114,29 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
         $this->disk->makeDirectory($path);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     true,
-            size:         null,
-            mimeType:     null,
-            webViewLink:  null,
+            id: $path,
+            name: $name,
+            isFolder: true,
+            size: null,
+            mimeType: null,
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $parentId,
+            modifiedAt: Carbon::now(),
+            parentId: $parentId,
         );
     }
 
     public function getMetadata(string $fileId): CloudFile
     {
-        $name     = basename($fileId);
+        $name = basename($fileId);
         $isFolder = $this->disk->directoryExists($fileId);
 
         if ($isFolder) {
             return new CloudFile(
-                id:       $fileId,
-                name:     $name,
+                id: $fileId,
+                name: $name,
                 isFolder: true,
-                size:     null, mimeType: null, webViewLink: null, thumbnailUrl: null, modifiedAt: null,
+                size: null, mimeType: null, webViewLink: null, thumbnailUrl: null, modifiedAt: null,
             );
         }
 
@@ -147,14 +147,14 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
         $lastMod = $this->disk->lastModified($fileId);
 
         return new CloudFile(
-            id:           $fileId,
-            name:         $name,
-            isFolder:     false,
-            size:         $this->disk->size($fileId) ?: null,
-            mimeType:     $this->disk->mimeType($fileId) ?: null,
-            webViewLink:  $this->publicUrl($fileId),
+            id: $fileId,
+            name: $name,
+            isFolder: false,
+            size: $this->disk->size($fileId) ?: null,
+            mimeType: $this->disk->mimeType($fileId) ?: null,
+            webViewLink: $this->publicUrl($fileId),
             thumbnailUrl: null,
-            modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+            modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
         );
     }
 
@@ -207,7 +207,7 @@ class LocalAdapter implements CloudAdapter, SupportsSameDriveOperations
     {
         try {
             return $this->disk->url($path);
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             return null;
         }
     }

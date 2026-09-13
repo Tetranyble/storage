@@ -3,13 +3,13 @@
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Application\Bulk;
 
 use Illuminate\Database\Eloquent\Model;
-use Throwable;
 use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
 use Tetranyble\Storage\Modules\Media\Application\MoveMedia;
 use Tetranyble\Storage\Modules\Media\Application\RestoreMedia;
 use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\StorageException;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\StorageException;
+use Throwable;
 
 /**
  * Bounded bulk orchestration over the canonical single-item use cases.
@@ -59,8 +59,8 @@ final class BulkMediaService
     }
 
     /**
-     * @param list<int|string> $mediaIds
-     * @param callable(Media):void $operation
+     * @param  list<int|string>  $mediaIds
+     * @param  callable(Media):void  $operation
      */
     private function run(Model $workspace, array $mediaIds, bool $withTrashed, callable $operation): array
     {
@@ -78,6 +78,7 @@ final class BulkMediaService
             $media = $query->whereKey($id)->first();
             if (! $media instanceof Media) {
                 $results[] = ['id' => $id, 'status' => 'not_found'];
+
                 continue;
             }
 

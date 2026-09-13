@@ -5,13 +5,13 @@ namespace Tetranyble\Storage\Modules\Storage\Infrastructure\Application;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
 use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
 
 /** Read/execute retention rules without hiding destructive work behind a scheduler. */
 final class StorageRetentionService
@@ -95,10 +95,11 @@ final class StorageRetentionService
             $disk = is_string($session->disk) ? Disk::tryFrom($session->disk) : null;
             if ($disk instanceof Disk) {
                 foreach ($session->chunks as $chunk) {
-                    if (is_string($chunk->getAttribute('path')) && $chunk->getAttribute('path') !== '') {
+                    $path = $chunk->getAttribute('path');
+                    if (is_string($path) && $path !== '') {
                         $this->orphans->deleteOrTrack(
                             $disk,
-                            $chunk->path,
+                            $path,
                             $session->workspace_id ? (int) $session->workspace_id : null,
                             (int) $chunk->getAttribute('size'),
                             'retention_upload_chunk',

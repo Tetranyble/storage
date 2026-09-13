@@ -2,14 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
+use RuntimeException;
+use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Sharing\Application\Contracts\MediaShares;
-use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
-
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
-use RuntimeException;
 
 class MediaMailService
 {
@@ -36,6 +35,7 @@ class MediaMailService
     public function signedLinkPayload(object $media, int $ttlMinutes = 60): MediaMailPayload
     {
         $this->delivery->assertDeliverable($media);
+
         return MediaMailPayload::url(
             filename: $this->filename($media),
             mime: $this->mime($media),
@@ -125,5 +125,4 @@ class MediaMailService
 
         return is_string($disk) ? (Disk::tryFrom($disk) ?? Disk::PUBLIC) : Disk::PUBLIC;
     }
-
 }

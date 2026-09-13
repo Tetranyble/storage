@@ -5,7 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 $failures = [];
 $read = static fn (string $path): string => is_file($root.'/'.$path) ? (string) file_get_contents($root.'/'.$path) : '';
-$requiredQueries = ['BrowseWorkspace','TrashWorkspace','StarredWorkspace','SharedWithMe','MediaVersions','SearchWorkspace','RecentWorkspace','ActivityWorkspace'];
+$requiredQueries = ['BrowseWorkspace', 'TrashWorkspace', 'StarredWorkspace', 'SharedWithMe', 'MediaVersions', 'SearchWorkspace', 'RecentWorkspace', 'ActivityWorkspace'];
 $requiredHandlers = array_map(static fn (string $name): string => $name.'Handler', $requiredQueries);
 
 $port = $read('src/Modules/Workspace/Application/Contracts/WorkspaceReadModel.php');
@@ -34,7 +34,7 @@ $lineCount = $compat === '' ? 0 : substr_count($compat, "\n") + 1;
 if ($lineCount > 150) {
     $failures[] = 'WorkspaceFileQueryService must remain a thin compatibility adapter (<=150 lines).';
 }
-foreach (['ResourceVisibilityQuery','cursorPaginate(','Folder::query()','Media::query()'] as $queryDetail) {
+foreach (['ResourceVisibilityQuery', 'cursorPaginate(', 'Folder::query()', 'Media::query()'] as $queryDetail) {
     if (str_contains($compat, $queryDetail)) {
         $failures[] = 'WorkspaceFileQueryService reintroduced persistence/query composition: '.$queryDetail;
     }

@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Support\StorageConfig;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Support\StorageConfig;
 
 /**
  * Owns physical path relocation/rename mechanics for media objects.
@@ -151,7 +151,7 @@ class MediaRelocationService
     }
 
     /**
-     * @param array<int, array{source:string,destination:string,disk:Disk,size:int|null}> $plans
+     * @param  array<int, array{source:string,destination:string,disk:Disk,size:int|null}>  $plans
      * @return array<int, array{source:string,destination:string,disk:Disk,size:int|null}>
      */
     private function copyPlans(array $plans, Media $media): array

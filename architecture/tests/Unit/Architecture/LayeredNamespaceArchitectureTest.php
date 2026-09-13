@@ -130,6 +130,7 @@ class LayeredNamespaceArchitectureTest extends TestCase
             }
         }
         sort($files);
+
         return $files;
     }
 

@@ -88,6 +88,7 @@ foreach ($phpFiles('src') as $path) {
     $contents = (string) file_get_contents($path);
     if (preg_match('/^namespace\\s+([^;]+);/m', $contents, $match) !== 1) {
         $fail($relative($path).' has no namespace declaration.');
+
         continue;
     }
     $underSrc = substr($relative($path), strlen('src/'));

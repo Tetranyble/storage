@@ -2,52 +2,60 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
 use RuntimeException;
+use Tetranyble\Storage\Events\DriveConnected;
+use Tetranyble\Storage\Events\DriveDisconnected;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class ConnectedDriveServiceTest extends PackageTestCase
 {
     private MockInterface $oauth;
+
     private MockInterface $files;
+
     private MockInterface $storage;
+
     private ConnectedDriveService $service;
+
     private Workspace $workspace;
+
     private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->oauth   = Mockery::mock(OAuthService::class);
-        $this->files   = Mockery::mock(FileSystemContract::class);
+        $this->oauth = Mockery::mock(OAuthService::class);
+        $this->files = Mockery::mock(FileSystemContract::class);
         $this->storage = Mockery::mock(StorageService::class);
 
         $this->service = new ConnectedDriveService($this->oauth, $this->files, $this->storage);
 
-        $this->workspace = Workspace::create(['name' => 'Acme Corp', 'uuid' => \Illuminate\Support\Str::uuid()]);
-        $this->user   = User::create(['name' => 'Alice', 'uuid' => \Illuminate\Support\Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $this->workspace = Workspace::create(['name' => 'Acme Corp', 'uuid' => Str::uuid()]);
+        $this->user = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
         Event::fake();
     }
@@ -55,9 +63,9 @@ class ConnectedDriveServiceTest extends PackageTestCase
     public function test_connect_oauth_creates_connected_drive(): void
     {
         $tokenData = [
-            'access_token'  => 'goog-token',
+            'access_token' => 'goog-token',
             'refresh_token' => 'goog-refresh',
-            'expires_at'    => Carbon::now()->addHour(),
+            'expires_at' => Carbon::now()->addHour(),
         ];
 
         $drive = $this->service->connectOAuth($this->workspace, CloudProvider::GOOGLE_DRIVE, $tokenData, 'My GDrive');
@@ -71,7 +79,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
     public function test_connect_oauth_throws_for_s3(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
 
         $this->service->connectOAuth($this->workspace, CloudProvider::S3, [], 'My S3');
     }
@@ -91,18 +99,18 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
         $this->service->disconnect($this->workspace, $drive, $this->user);
 
-        Event::assertDispatched(\Tetranyble\Storage\Events\DriveDisconnected::class);
+        Event::assertDispatched(DriveDisconnected::class);
     }
 
     public function test_disconnect_aborts_for_wrong_workspace(): void
     {
-        $other = Workspace::create(['name' => 'Other', 'uuid' => \Illuminate\Support\Str::uuid()]);
+        $other = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $drive = ConnectedDrive::create([
-            'uuid'      => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
             'workspace_id' => $other->id,
-            'provider'  => CloudProvider::GOOGLE_DRIVE,
-            'name'      => 'Drive',
-            'status'    => ConnectedDriveStatus::CONNECTED,
+            'provider' => CloudProvider::GOOGLE_DRIVE,
+            'name' => 'Drive',
+            'status' => ConnectedDriveStatus::CONNECTED,
         ]);
 
         $this->expectException(ResourceNotFoundException::class);
@@ -115,8 +123,8 @@ class ConnectedDriveServiceTest extends PackageTestCase
         $this->makeDrive(CloudProvider::GOOGLE_DRIVE, 'GDrive');
         $this->makeDrive(CloudProvider::ONEDRIVE, 'OneDrive');
 
-        $other = Workspace::create(['name' => 'Other', 'uuid' => \Illuminate\Support\Str::uuid()]);
-        ConnectedDrive::create(['uuid' => \Illuminate\Support\Str::uuid(), 'workspace_id' => $other->id, 'provider' => CloudProvider::S3, 'name' => 'Other S3', 'status' => ConnectedDriveStatus::CONNECTED]);
+        $other = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
+        ConnectedDrive::create(['uuid' => Str::uuid(), 'workspace_id' => $other->id, 'provider' => CloudProvider::S3, 'name' => 'Other S3', 'status' => ConnectedDriveStatus::CONNECTED]);
 
         $list = $this->service->listConnected($this->workspace);
 
@@ -126,7 +134,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
     public function test_browse_folder_returns_structured_response(): void
     {
-        $drive   = $this->makeDrive(CloudProvider::GOOGLE_DRIVE);
+        $drive = $this->makeDrive(CloudProvider::GOOGLE_DRIVE);
         $adapter = Mockery::mock(CloudAdapter::class);
         $cloudFile = new CloudFile('f1', 'report.pdf', false, 1024, 'application/pdf', null, null, null);
         $adapter->shouldReceive('listFolder')->with('root')->andReturn([$cloudFile]);
@@ -184,7 +192,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
             'name' => 'Imports',
             'slug' => 'imports',
             'path' => 'imports',
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
         ]);
         $drive = $this->makeDrive(CloudProvider::LOCAL);
 
@@ -218,7 +226,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
             'name' => 'Imports',
             'slug' => 'imports',
             'path' => 'imports',
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
         ]);
         $drive = $this->makeDrive(CloudProvider::LOCAL);
 
@@ -250,7 +258,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
             'name' => 'Imports',
             'slug' => 'imports',
             'path' => 'imports',
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
         ]);
         $drive = $this->makeDrive(CloudProvider::LOCAL);
 
@@ -291,7 +299,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
             'name' => 'Imports',
             'slug' => 'imports',
             'path' => 'imports',
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
         ]);
         $drive = $this->makeDrive(CloudProvider::LOCAL);
 
@@ -331,25 +339,25 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
     public function test_export_file_calls_put_file_on_adapter(): void
     {
-        $drive  = $this->makeDrive(CloudProvider::S3);
+        $drive = $this->makeDrive(CloudProvider::S3);
         $folder = Folder::create([
             'workspace_id' => $this->workspace->id,
-            'name'      => 'Root',
-            'slug'      => 'root',
-            'path'      => '/',
-            'uuid'      => \Illuminate\Support\Str::uuid(),
+            'name' => 'Root',
+            'slug' => 'root',
+            'path' => '/',
+            'uuid' => Str::uuid(),
         ]);
         $media = Media::create([
-            'workspace_id'     => $this->workspace->id,
-            'folder_id'     => $folder->id,
-            'uuid'          => \Illuminate\Support\Str::uuid(),
-            'disk'          => Disk::PUBLIC,
-            'path'          => 'test/file.pdf',
+            'workspace_id' => $this->workspace->id,
+            'folder_id' => $folder->id,
+            'uuid' => Str::uuid(),
+            'disk' => Disk::PUBLIC,
+            'path' => 'test/file.pdf',
             'original_name' => 'report.pdf',
-            'mime_type'     => 'application/pdf',
+            'mime_type' => 'application/pdf',
         ]);
 
-        $adapter   = Mockery::mock(CloudAdapter::class);
+        $adapter = Mockery::mock(CloudAdapter::class);
         $cloudFile = new CloudFile('remote-id', 'report.pdf', false, 100, 'application/pdf', null, null, null);
         $adapter->shouldReceive('putFile')->once()->andReturn($cloudFile);
 
@@ -401,12 +409,12 @@ class ConnectedDriveServiceTest extends PackageTestCase
     {
         $this->service->connectLocal($this->workspace, 'local', 'My Local');
 
-        Event::assertDispatched(\Tetranyble\Storage\Events\DriveConnected::class);
+        Event::assertDispatched(DriveConnected::class);
     }
 
     public function test_connect_oauth_throws_for_local(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
 
         $this->service->connectOAuth($this->workspace, CloudProvider::LOCAL, [], 'Local');
     }
@@ -418,12 +426,12 @@ class ConnectedDriveServiceTest extends PackageTestCase
     private function makeDrive(CloudProvider $provider, string $name = 'Test Drive'): ConnectedDrive
     {
         return ConnectedDrive::create([
-            'uuid'         => \Illuminate\Support\Str::uuid(),
-            'workspace_id'    => $this->workspace->id,
-            'provider'     => $provider,
-            'name'         => $name,
+            'uuid' => Str::uuid(),
+            'workspace_id' => $this->workspace->id,
+            'provider' => $provider,
+            'name' => $name,
             'access_token' => 'fake-token',
-            'status'       => ConnectedDriveStatus::CONNECTED,
+            'status' => ConnectedDriveStatus::CONNECTED,
             'connected_at' => now(),
         ]);
     }

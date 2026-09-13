@@ -38,3 +38,4 @@ testbench.yaml
 # Local release artifacts
 /dist/
 /tetranyble-storage
+/failure

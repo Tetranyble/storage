@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\DirectUpload\Application;
 
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 
 final class DirectUploadSessionGuard
 {

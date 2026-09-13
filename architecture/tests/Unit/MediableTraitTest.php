@@ -2,15 +2,15 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Mockery;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediableTraitTest extends PackageTestCase
 {

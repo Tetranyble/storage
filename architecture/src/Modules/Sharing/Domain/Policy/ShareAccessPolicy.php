@@ -30,11 +30,11 @@ final readonly class ShareAccessPolicy
     public function assertAccessible(DateTimeImmutable $now): void
     {
         if ($this->expiresAt !== null && $now > $this->expiresAt) {
-            throw new ShareExpiredException();
+            throw new ShareExpiredException;
         }
 
         if ($this->maxDownloads !== null && $this->downloadsCount >= $this->maxDownloads) {
-            throw new ShareDownloadLimitReachedException();
+            throw new ShareDownloadLimitReachedException;
         }
     }
 
@@ -43,7 +43,7 @@ final readonly class ShareAccessPolicy
         $this->assertAccessible($now);
 
         if ($this->accessLevel !== ShareAccessLevel::DOWNLOAD) {
-            throw new ShareDownloadNotAllowedException();
+            throw new ShareDownloadNotAllowedException;
         }
     }
 }

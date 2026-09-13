@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Tests\Fixtures\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Tetranyble\Storage\Concerns\HasMedia;
 use Tetranyble\Storage\Concerns\ManipulatesMedia;
-use Illuminate\Database\Eloquent\Model;
 
 class DummyMediableModel extends Model
 {

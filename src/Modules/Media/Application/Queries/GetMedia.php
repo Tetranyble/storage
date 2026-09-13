@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application\Queries;
 
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 
 class GetMedia
 {

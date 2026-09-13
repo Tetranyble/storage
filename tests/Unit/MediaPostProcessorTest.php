@@ -3,15 +3,15 @@
 namespace Tetranyble\Storage\Tests\Unit;
 
 use Illuminate\Support\Facades\Storage;
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\ExifOrientationReader;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\ImageOrientationNormalizer;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaPostProcessor;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
@@ -31,7 +31,7 @@ class MediaPostProcessorTest extends PackageTestCase
     {
         [$workspace, $media] = $this->media('application/pdf', 'docs/report.pdf', 'pdf');
 
-        $result = $this->processor()->process($media, new MediaUploadOptions());
+        $result = $this->processor()->process($media, new MediaUploadOptions);
 
         $this->assertArrayHasKey('media', $result);
         $this->assertArrayNotHasKey('derivatives', $result);
@@ -48,7 +48,7 @@ class MediaPostProcessorTest extends PackageTestCase
         $png = $this->png(4, 2);
         [$workspace, $media] = $this->media('image/png', 'images/photo.png', $png);
 
-        $result = $this->processor()->process($media, new MediaUploadOptions());
+        $result = $this->processor()->process($media, new MediaUploadOptions);
         $derivative = MediaDerivative::query()->where('media_id', $media->id)->firstOrFail();
 
         $this->assertSame(MediaDerivativeKind::THUMBNAIL, $derivative->kind);
@@ -71,11 +71,11 @@ class MediaPostProcessorTest extends PackageTestCase
         [$workspace, $media] = $this->media('image/png', 'images/reprocess.png', $this->png(3, 3));
         $processor = $this->processor();
 
-        $processor->process($media, new MediaUploadOptions());
+        $processor->process($media, new MediaUploadOptions);
         $firstUsage = (int) $workspace->fresh()->storage_used_bytes;
         $first = MediaDerivative::query()->where('media_id', $media->id)->firstOrFail();
 
-        $processor->process($media->fresh(), new MediaUploadOptions());
+        $processor->process($media->fresh(), new MediaUploadOptions);
 
         $this->assertDatabaseCount('media_derivatives', 1);
         $this->assertSame($first->id, MediaDerivative::query()->where('media_id', $media->id)->firstOrFail()->id);
@@ -92,7 +92,7 @@ class MediaPostProcessorTest extends PackageTestCase
         config()->set('tetranyble-storage.derivatives.thumbnail.primary_format', 'webp');
         [, $media] = $this->media('image/png', 'images/formats.png', $this->png(5, 5));
 
-        $this->processor()->process($media, new MediaUploadOptions());
+        $this->processor()->process($media, new MediaUploadOptions);
 
         $formats = MediaDerivative::query()->where('media_id', $media->id)->pluck('format')->sort()->values()->all();
         $expected = function_exists('imageavif') ? ['avif', 'webp'] : ['webp'];
@@ -112,7 +112,7 @@ class MediaPostProcessorTest extends PackageTestCase
 
         $this->expectException(UnsafeMediaException::class);
         try {
-            $this->processor()->process($media, new MediaUploadOptions());
+            $this->processor()->process($media, new MediaUploadOptions);
         } finally {
             $this->assertDatabaseCount('media_derivatives', 0);
         }
@@ -120,7 +120,7 @@ class MediaPostProcessorTest extends PackageTestCase
 
     public function test_exif_orientation_reader_parses_orientation_six(): void
     {
-        $reader = new ExifOrientationReader();
+        $reader = new ExifOrientationReader;
 
         $this->assertSame(6, $reader->orientation($this->jpegWithOrientation(6), 'image/jpeg'));
         $this->assertSame(1, $reader->orientation($this->jpegWithOrientation(6), 'image/png'));
@@ -133,7 +133,7 @@ class MediaPostProcessorTest extends PackageTestCase
         }
 
         $image = imagecreatetruecolor(4, 2);
-        $normalizer = new ImageOrientationNormalizer(new ExifOrientationReader());
+        $normalizer = new ImageOrientationNormalizer(new ExifOrientationReader);
         $normalized = $normalizer->normalize($image, 6);
 
         $this->assertSame(2, imagesx($normalized));
@@ -173,6 +173,7 @@ class MediaPostProcessorTest extends PackageTestCase
         imagepng($image);
         $binary = (string) ob_get_clean();
         imagedestroy($image);
+
         return $binary;
     }
 
@@ -184,6 +185,7 @@ class MediaPostProcessorTest extends PackageTestCase
             .pack('N', 0);
         $payload = "Exif\0\0".$tiff;
         $segment = "\xFF\xE1".pack('n', strlen($payload) + 2).$payload;
+
         return "\xFF\xD8".$segment."\xFF\xD9";
     }
 }

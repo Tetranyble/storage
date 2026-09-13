@@ -2,18 +2,17 @@
 
 namespace Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
-use Throwable;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Support\StorageConfig;
+use Throwable;
 
 /**
  * Owns derivative persistence, quota accounting, and physical cleanup.

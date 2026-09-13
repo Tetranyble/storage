@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Http\Responses;
 
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 
 class MediaStreamResponder
 {
@@ -33,7 +33,7 @@ class MediaStreamResponder
             }
         }, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => (new ResponseHeaderBag())->makeDisposition('attachment', SafeDownloadFilename::from($filename), 'download'),
+            'Content-Disposition' => (new ResponseHeaderBag)->makeDisposition('attachment', SafeDownloadFilename::from($filename), 'download'),
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }

@@ -12,6 +12,7 @@ use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\CloudProviderDependency
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\CloudProviderRegistry;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\CloudProviderStrategy;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\DefaultCloudProviderRegistryFactory;
 
 class CloudProviderRegistryTest extends TestCase
 {
@@ -19,7 +20,7 @@ class CloudProviderRegistryTest extends TestCase
     {
         $adapter = Mockery::mock(CloudAdapter::class);
         $strategy = new StubCloudProviderStrategy(CloudProvider::LOCAL, $adapter);
-        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard(), [$strategy]);
+        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard, [$strategy]);
         $drive = new ConnectedDrive(['provider' => CloudProvider::LOCAL]);
 
         $this->assertSame($adapter, $registry->adapterFor($drive));
@@ -35,7 +36,7 @@ class CloudProviderRegistryTest extends TestCase
         $first = new StubCloudProviderStrategy(CloudProvider::LOCAL, Mockery::mock(CloudAdapter::class));
         $replacementAdapter = Mockery::mock(CloudAdapter::class);
         $replacement = new StubCloudProviderStrategy(CloudProvider::LOCAL, $replacementAdapter);
-        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard(), [$first]);
+        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard, [$first]);
 
         $registry->register($replacement);
 
@@ -59,11 +60,10 @@ class CloudProviderRegistryTest extends TestCase
         $registry->prepareCredentials(CloudProvider::LOCAL, []);
     }
 
-
     public function test_registry_reports_oauth_capability_from_strategy_type(): void
     {
-        $registry = \Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\DefaultCloudProviderRegistryFactory::make(
-            new CloudProviderDependencyGuard(),
+        $registry = DefaultCloudProviderRegistryFactory::make(
+            new CloudProviderDependencyGuard,
             [],
         );
 
@@ -75,7 +75,7 @@ class CloudProviderRegistryTest extends TestCase
 
     public function test_unregistered_provider_fails_explicitly(): void
     {
-        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard());
+        $registry = new CloudProviderRegistry(new CloudProviderDependencyGuard);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No cloud provider strategy is registered');

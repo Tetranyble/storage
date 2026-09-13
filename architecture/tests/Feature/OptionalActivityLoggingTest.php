@@ -2,22 +2,21 @@
 
 namespace Tetranyble\Storage\Tests\Feature;
 
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
-use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
-use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\NullActivityFeed;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\NullActivityLogger;
+use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
+use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class OptionalActivityLoggingTest extends PackageTestCase

@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Modules\Sharing\Application;
 
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
 use Tetranyble\Storage\Modules\Sharing\Application\Contracts\MediaShares;
 
 final class CreateMediaShare
@@ -45,7 +45,7 @@ final class CreateMediaShare
             password: $password,
             createdBy: $actor ? $this->state->key($actor) : ($user ? $this->state->key($user) : null),
         );
-        
+
         $this->activity->log(
             subject: $media,
             type: 'storage.media.shared',

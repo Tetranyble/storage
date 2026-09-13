@@ -2,7 +2,12 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure;
 
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use Closure;
+use Cloudinary\Cloudinary;
+use Google\Client;
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Exceptions\MissingCloudProviderDependency;
 
@@ -11,22 +16,22 @@ final class CloudProviderDependencyGuard
     /** @var array<string, array<string, class-string>> */
     private const REQUIREMENTS = [
         'google_drive' => [
-            'google/apiclient' => \Google\Client::class,
+            'google/apiclient' => Client::class,
         ],
         'dropbox' => [
             'spatie/dropbox-api' => \Spatie\Dropbox\Client::class,
         ],
         's3' => [
-            'league/flysystem-aws-s3-v3' => \League\Flysystem\AwsS3V3\AwsS3V3Adapter::class,
+            'league/flysystem-aws-s3-v3' => AwsS3V3Adapter::class,
         ],
         'azure_blob' => [
-            'azure-oss/storage-blob-flysystem' => \AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter::class,
+            'azure-oss/storage-blob-flysystem' => AzureBlobStorageAdapter::class,
         ],
         'gcs' => [
-            'league/flysystem-google-cloud-storage' => \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter::class,
+            'league/flysystem-google-cloud-storage' => GoogleCloudStorageAdapter::class,
         ],
         'cloudinary' => [
-            'cloudinary/cloudinary_php' => \Cloudinary\Cloudinary::class,
+            'cloudinary/cloudinary_php' => Cloudinary::class,
         ],
     ];
 

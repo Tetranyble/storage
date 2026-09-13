@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
+use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaRevisionWriter;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaRevisionWriter;
 
 class CreateMediaRevision
 {
@@ -27,7 +27,7 @@ class CreateMediaRevision
             $file,
             $actor ? (int) $this->state->key($actor) : null,
         );
-        
+
         return $revision;
     }
 }

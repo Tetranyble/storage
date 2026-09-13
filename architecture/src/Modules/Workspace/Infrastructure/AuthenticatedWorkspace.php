@@ -4,10 +4,10 @@ namespace Tetranyble\Storage\Modules\Workspace\Infrastructure;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext as WorkspaceContract;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Http\Contracts\WorkspaceContext as WorkspaceContract;
 use Tetranyble\Storage\Support\StorageConfig;
 
 class AuthenticatedWorkspace implements WorkspaceContract
@@ -38,7 +38,7 @@ class AuthenticatedWorkspace implements WorkspaceContract
                 throw new AccessDeniedException('The current actor is not associated with a storage workspace.');
             }
 
-            throw new AuthenticationRequiredException();
+            throw new AuthenticationRequiredException;
         }
 
         return $workspace;
@@ -58,7 +58,7 @@ class AuthenticatedWorkspace implements WorkspaceContract
     public function authorizeOwnership(object $workspace, object $resource): void
     {
         if (! $this->owns($workspace, $resource)) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 }

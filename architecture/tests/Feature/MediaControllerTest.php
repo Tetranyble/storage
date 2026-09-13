@@ -3,17 +3,17 @@
 namespace Tetranyble\Storage\Tests\Feature;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaControllerTest extends PackageTestCase
@@ -86,7 +86,6 @@ class MediaControllerTest extends PackageTestCase
             ->getJson(route('tetranyble-storage.uploads.show', $sessionUuid))
             ->assertNotFound();
     }
-
 
     public function test_resumable_upload_session_cannot_be_used_by_another_user_in_the_same_workspace(): void
     {
@@ -165,8 +164,6 @@ class MediaControllerTest extends PackageTestCase
         $media = Media::query()->where('uuid', $response->json('data.media.uuid'))->firstOrFail();
         Storage::disk('public')->assertExists($media->path);
     }
-
-
 
     public function test_owner_can_read_update_and_upload_into_a_restricted_folder(): void
     {
@@ -357,7 +354,6 @@ class MediaControllerTest extends PackageTestCase
 
         return [$workspace, $user];
     }
-
 
     private function restrictedMediaFor(Workspace $workspace, User $owner): array
     {

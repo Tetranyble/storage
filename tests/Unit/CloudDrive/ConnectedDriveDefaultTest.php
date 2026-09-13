@@ -2,41 +2,43 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Mockery;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class ConnectedDriveDefaultTest extends PackageTestCase
 {
     private ConnectedDriveService $service;
+
     private Workspace $workspace;
+
     private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $oauth   = Mockery::mock(OAuthService::class);
-        $files   = Mockery::mock(FileSystemContract::class);
+        $oauth = Mockery::mock(OAuthService::class);
+        $files = Mockery::mock(FileSystemContract::class);
         $storage = Mockery::mock(StorageService::class);
 
         $this->service = new ConnectedDriveService($oauth, $files, $storage);
 
         $this->workspace = Workspace::create(['name' => 'Acme', 'uuid' => Str::uuid()]);
-        $this->user   = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $this->user = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
         Event::fake();
     }
@@ -87,7 +89,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_set_default_swaps_atomically(): void
     {
-        $first  = $this->connectOAuth('First');
+        $first = $this->connectOAuth('First');
         $second = $this->connectOAuth('Second');
 
         $this->service->setDefault($this->workspace, $second);
@@ -103,11 +105,11 @@ class ConnectedDriveDefaultTest extends PackageTestCase
     {
         $other = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $drive = ConnectedDrive::create([
-            'uuid'      => Str::uuid(),
+            'uuid' => Str::uuid(),
             'workspace_id' => $other->id,
-            'provider'  => CloudProvider::GOOGLE_DRIVE,
-            'name'      => 'Foreign',
-            'status'    => ConnectedDriveStatus::CONNECTED,
+            'provider' => CloudProvider::GOOGLE_DRIVE,
+            'name' => 'Foreign',
+            'status' => ConnectedDriveStatus::CONNECTED,
         ]);
 
         $this->expectException(ResourceNotFoundException::class);
@@ -117,7 +119,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_get_default_returns_default_drive(): void
     {
-        $first  = $this->connectOAuth('First');
+        $first = $this->connectOAuth('First');
         $second = $this->connectOAuth('Second');
 
         $this->service->setDefault($this->workspace, $second);
@@ -137,7 +139,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_disconnecting_default_promotes_next(): void
     {
-        $first  = $this->connectOAuth('First');   // becomes default
+        $first = $this->connectOAuth('First');   // becomes default
         $second = $this->connectOAuth('Second');  // not default
 
         $this->service->disconnect($this->workspace, $first, $this->user);
@@ -150,7 +152,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_disconnecting_non_default_does_not_change_default(): void
     {
-        $first  = $this->connectOAuth('First');   // default
+        $first = $this->connectOAuth('First');   // default
         $second = $this->connectOAuth('Second');  // not default
 
         $this->service->disconnect($this->workspace, $second, $this->user);
@@ -172,7 +174,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_resolve_drive_uses_explicit_drive(): void
     {
-        $first  = $this->connectOAuth('First');
+        $first = $this->connectOAuth('First');
         $second = $this->connectOAuth('Second');
         // default is $first; we pass $second explicitly
         $resolved = $this->service->resolveDrive($this->workspace, $second);
@@ -199,7 +201,7 @@ class ConnectedDriveDefaultTest extends PackageTestCase
 
     public function test_list_connected_shows_default_first(): void
     {
-        $first  = $this->connectOAuth('Alpha');
+        $first = $this->connectOAuth('Alpha');
         $second = $this->connectOAuth('Zeta');
 
         $this->service->setDefault($this->workspace, $second);
@@ -216,9 +218,9 @@ class ConnectedDriveDefaultTest extends PackageTestCase
     private function connectOAuth(string $name): ConnectedDrive
     {
         return $this->service->connectOAuth($this->workspace, CloudProvider::GOOGLE_DRIVE, [
-            'access_token'  => 'tok-'.Str::random(8),
+            'access_token' => 'tok-'.Str::random(8),
             'refresh_token' => 'ref-'.Str::random(8),
-            'expires_at'    => Carbon::now()->addHour(),
+            'expires_at' => Carbon::now()->addHour(),
         ], $name);
     }
 

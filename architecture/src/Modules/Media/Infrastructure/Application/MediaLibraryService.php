@@ -2,25 +2,23 @@
 
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Application;
 
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
-
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
-use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Support\StorageConfig;
 
 class MediaLibraryService
 {
@@ -30,8 +28,7 @@ class MediaLibraryService
         protected StorageOrphanService $orphans,
         protected MediaDeletionService $deletion,
         protected MediaProcessingDispatcher $processing,
-    ) {
-    }
+    ) {}
 
     public function createWorkspaceRoot(Model $workspace): Folder
     {
@@ -41,7 +38,7 @@ class MediaLibraryService
         ], [
             'parent_id' => null,
             'name' => $workspace->getAttribute('name'),
-            'slug' => Str::slug($workspace->getAttribute('name') . '-root'),
+            'slug' => Str::slug($workspace->getAttribute('name').'-root'),
             'is_root' => true,
         ]);
 
@@ -413,8 +410,6 @@ class MediaLibraryService
         }
     }
 
-
-
     public function resolveOrCreateFolderPath(Model $workspace, string $relativePath): Folder
     {
         $relativePath = trim($relativePath, '/');
@@ -427,7 +422,7 @@ class MediaLibraryService
             [
                 'parent_id' => null,
                 'name' => $workspace->getAttribute('name'),
-                'slug' => Str::slug($workspace->getAttribute('name') . '-root'),
+                'slug' => Str::slug($workspace->getAttribute('name').'-root'),
                 'path' => 'root',
             ]
         );
@@ -446,7 +441,7 @@ class MediaLibraryService
             if ($slug === '') {
                 $slug = 'folder';
             }
-            $currentPath = trim($currentPath . '/' . $slug, '/');
+            $currentPath = trim($currentPath.'/'.$slug, '/');
 
             $folder = Folder::firstOrCreate(
                 [
@@ -557,9 +552,9 @@ class MediaLibraryService
     }
 
     /**
-     * @param EloquentCollection<int, Media> $mediaItems
-     * @param array<int, string> $oldPaths
-     * @param array<int, string> $targetPaths
+     * @param  EloquentCollection<int, Media>  $mediaItems
+     * @param  array<int, string>  $oldPaths
+     * @param  array<int, string>  $targetPaths
      * @return array{
      *   objects: array<int, array{source:string,destination:string,disk:Disk,size:int|null}>,
      *   media_paths: array<int, array{path:string|null}>,
@@ -781,6 +776,7 @@ class MediaLibraryService
         return str_starts_with($path, '//')
             || filter_var($path, FILTER_VALIDATE_URL) !== false;
     }
+
     /** @return array<string,mixed> */
     private function freshProcessingState(): array
     {
@@ -803,5 +799,4 @@ class MediaLibraryService
             'quarantine_reason' => null,
         ];
     }
-
 }

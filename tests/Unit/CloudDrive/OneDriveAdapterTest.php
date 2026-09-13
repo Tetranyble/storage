@@ -185,7 +185,7 @@ class OneDriveAdapterTest extends PackageTestCase
         ];
 
         if ($folder) {
-            $item['folder'] = new \stdClass();
+            $item['folder'] = new \stdClass;
         } else {
             $item['file'] = ['mimeType' => $mimeType];
         }

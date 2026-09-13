@@ -2,31 +2,31 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaRelocationService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaRelocationService;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Http\UploadedFile;
 
 class StorageLifecycleConsistencyTest extends PackageTestCase
 {

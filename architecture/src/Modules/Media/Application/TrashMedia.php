@@ -2,12 +2,12 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaLibrary;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
 
 class TrashMedia
 {

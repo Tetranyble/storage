@@ -5,45 +5,45 @@ namespace Tetranyble\Storage\Tests\Feature\Application;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionNamedType;
+use Tetranyble\Storage\Http\Controllers\ChunkedMediaUploadController;
+use Tetranyble\Storage\Http\Controllers\MediaController;
+use Tetranyble\Storage\Http\Controllers\MediaLibraryController;
 use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
 use Tetranyble\Storage\Modules\Folder\Application\EmptyTrash;
-use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
 use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaDeletion;
 use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaRelocation;
-use Tetranyble\Storage\Modules\Versioning\Application\Contracts\CurrentMediaSelection;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
 use Tetranyble\Storage\Modules\Media\Application\MoveMedia;
+use Tetranyble\Storage\Modules\Media\Application\Queries\GetMedia;
 use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
 use Tetranyble\Storage\Modules\Media\Application\RestoreMedia;
 use Tetranyble\Storage\Modules\Media\Application\SetCurrentMedia;
 use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
 use Tetranyble\Storage\Modules\Media\Application\UpdateMedia;
 use Tetranyble\Storage\Modules\Media\Application\UploadMedia;
-use Tetranyble\Storage\Modules\Media\Application\Queries\GetMedia;
-use Tetranyble\Storage\Modules\Workspace\Application\Contracts\WorkspaceReadModel;
-use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
-use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
-use Tetranyble\Storage\Modules\Remote\Application\ImportRemoteMedia;
-use Tetranyble\Storage\Modules\Upload\Application\ResumableUploadSessionGuard;
-use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
-use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\CurrentMediaSelectionService;
-use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
-use Tetranyble\Storage\Modules\Remote\Application\Contracts\RemoteMediaImporter;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\StoragePlacementPolicy;
-use Tetranyble\Storage\Http\Controllers\ChunkedMediaUploadController;
-use Tetranyble\Storage\Http\Controllers\MediaController;
-use Tetranyble\Storage\Http\Controllers\MediaLibraryController;
-use Tetranyble\Storage\Modules\Remote\Infrastructure\RemoteMediaDownloadService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaRelocationService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStorageTransferService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Remote\Application\Contracts\RemoteMediaImporter;
+use Tetranyble\Storage\Modules\Remote\Application\ImportRemoteMedia;
+use Tetranyble\Storage\Modules\Remote\Infrastructure\RemoteMediaDownloadService;
+use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
+use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\StoragePlacementPolicy;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Upload\Application\ResumableUploadSessionGuard;
+use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
 use Tetranyble\Storage\Modules\Upload\Infrastructure\ResumableUploadOptionsCodec;
 use Tetranyble\Storage\Modules\Upload\Infrastructure\ResumableUploadService;
+use Tetranyble\Storage\Modules\Versioning\Application\Contracts\CurrentMediaSelection;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\CurrentMediaSelectionService;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\WorkspaceReadModel;
 
 class ApplicationBoundaryArchitectureTest extends TestCase
 {
@@ -164,6 +164,7 @@ class ApplicationBoundaryArchitectureTest extends TestCase
         return array_values(array_filter(array_map(
             static function ($parameter): ?string {
                 $type = $parameter->getType();
+
                 return $type instanceof ReflectionNamedType && ! $type->isBuiltin() ? $type->getName() : null;
             },
             $constructor->getParameters(),

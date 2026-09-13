@@ -2,18 +2,18 @@
 
 namespace Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access;
 
-use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Support\StorageConfig;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Support\StorageConfig;
 
 class AccessControlService
 {
@@ -32,7 +32,7 @@ class AccessControlService
 
         $userWorkspaceId = StorageConfig::actorWorkspaceId($user);
         if ($userWorkspaceId !== null && $userWorkspaceId !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         return CollaboratorGrant::updateOrCreate(
@@ -144,7 +144,7 @@ class AccessControlService
     {
         if (! $this->canView($workspace, $resource, $user)) {
             $this->recordDenial('view', $workspace, $resource, $user);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
     }
 
@@ -152,7 +152,7 @@ class AccessControlService
     {
         if (! $this->canEdit($workspace, $resource, $user)) {
             $this->recordDenial('edit', $workspace, $resource, $user);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
     }
 
@@ -160,7 +160,7 @@ class AccessControlService
     {
         if (! $this->canManagePermissions($workspace, $resource, $user)) {
             $this->recordDenial('manage_permissions', $workspace, $resource, $user);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
     }
 
@@ -170,7 +170,7 @@ class AccessControlService
 
         if (! $this->isOwner($resource, $from)) {
             $this->recordDenial('transfer_ownership', $workspace, $resource, $from);
-            throw new AccessDeniedException();
+            throw new AccessDeniedException;
         }
 
         if ((int) $from->getKey() === (int) $to->getKey()) {
@@ -297,7 +297,6 @@ class AccessControlService
         return false;
     }
 
-
     private function recordDenial(string $action, Model $workspace, Model $resource, ?Model $user): void
     {
         $context = [
@@ -314,7 +313,7 @@ class AccessControlService
     private function assertWorkspaceResource(Model $workspace, Model $resource): void
     {
         if ((int) ($resource->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 }

@@ -3,7 +3,6 @@
 namespace Tetranyble\Storage\Modules\Processing\Infrastructure\Application;
 
 use Illuminate\Support\Facades\DB;
-use Throwable;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
@@ -25,6 +24,7 @@ use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MalwareDetectedException;
 use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaScanFailedException;
 use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
 use Tetranyble\Storage\Modules\Trust\Domain\ValueObject\MediaScanId;
+use Throwable;
 
 class MediaProcessingService
 {

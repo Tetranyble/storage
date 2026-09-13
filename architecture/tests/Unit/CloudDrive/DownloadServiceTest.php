@@ -2,54 +2,60 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
-use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
-use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\EloquentResourceState;
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
-use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
-use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
-use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredMediaDeliveryPolicy;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\EloquentResourceState;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
+use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredMediaDeliveryPolicy;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class DownloadServiceTest extends PackageTestCase
 {
     private MockInterface $files;
+
     private MockInterface $drives;
+
     private MockInterface $access;
+
     private DownloadService $service;
+
     private Workspace $workspace;
+
     private User $actor;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->files  = Mockery::mock(FileSystemContract::class);
+        $this->files = Mockery::mock(FileSystemContract::class);
         $this->drives = Mockery::mock(ConnectedDriveService::class);
         $this->access = Mockery::mock(ResourceAccessControl::class);
 
         $this->service = new DownloadService($this->files, $this->drives, $this->access);
 
         $this->workspace = Workspace::create(['name' => 'Acme', 'uuid' => Str::uuid()]);
-        $this->actor  = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $this->actor = User::create(['name' => 'Alice', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
     }
 
     // ---------------------------------------------------------------
@@ -72,7 +78,6 @@ class DownloadServiceTest extends PackageTestCase
         $this->assertSame('%PDF bytes', $payload->binary);
     }
 
-
     public function test_download_blocks_quarantined_media_before_reading_storage(): void
     {
         config()->set('tetranyble-storage.trust.virus_scanning.enabled', true);
@@ -88,7 +93,7 @@ class DownloadServiceTest extends PackageTestCase
             $this->files,
             $this->drives,
             $this->access,
-            new MediaDeliveryGuard(new ConfiguredMediaDeliveryPolicy(), new EloquentResourceState()),
+            new MediaDeliveryGuard(new ConfiguredMediaDeliveryPolicy, new EloquentResourceState),
         );
         $this->files->shouldNotReceive('get');
 
@@ -105,7 +110,7 @@ class DownloadServiceTest extends PackageTestCase
         $this->service->downloadMedia($this->workspace, $media, null);
     }
 
-    public function test_download_restricted_media_calls_authorizeView(): void
+    public function test_download_restricted_media_calls_authorize_view(): void
     {
         $media = $this->mediaRecord('secret.pdf', AccessScope::RESTRICTED, 'application/pdf');
 
@@ -123,7 +128,7 @@ class DownloadServiceTest extends PackageTestCase
     public function test_download_wrong_workspace_aborts_404(): void
     {
         $otherWorkspace = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
-        $media       = $this->mediaRecord('file.pdf', AccessScope::WORKSPACE, 'application/pdf', $otherWorkspace);
+        $media = $this->mediaRecord('file.pdf', AccessScope::WORKSPACE, 'application/pdf', $otherWorkspace);
 
         $this->expectException(ResourceNotFoundException::class);
 
@@ -151,8 +156,8 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_zip_media_skips_restricted_items_without_permission(): void
     {
-        $allowed   = $this->mediaRecord('ok.txt',  AccessScope::WORKSPACE, 'text/plain');
-        $forbidden = $this->mediaRecord('no.txt',  AccessScope::RESTRICTED, 'text/plain');
+        $allowed = $this->mediaRecord('ok.txt', AccessScope::WORKSPACE, 'text/plain');
+        $forbidden = $this->mediaRecord('no.txt', AccessScope::RESTRICTED, 'text/plain');
 
         $this->access->shouldReceive('canView')
             ->with($this->workspace, $forbidden, $this->actor)
@@ -169,9 +174,9 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_zip_media_skips_wrong_workspace_items(): void
     {
-        $other     = Workspace::create(['name' => 'X', 'uuid' => Str::uuid()]);
+        $other = Workspace::create(['name' => 'X', 'uuid' => Str::uuid()]);
         $goodMedia = $this->mediaRecord('good.txt', AccessScope::WORKSPACE, 'text/plain');
-        $badMedia  = $this->mediaRecord('bad.txt',  AccessScope::WORKSPACE, 'text/plain', $other);
+        $badMedia = $this->mediaRecord('bad.txt', AccessScope::WORKSPACE, 'text/plain', $other);
 
         $this->files->shouldReceive('get')->once()->andReturn('data');
 
@@ -212,9 +217,9 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_download_from_drive_returns_streamed_response(): void
     {
-        $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
-        $meta    = new CloudFile('f1', 'photo.jpg', false, 512, 'image/jpeg', null, null, null);
+        $drive = $this->drive();
+        $adapter = Mockery::mock(CloudAdapter::class);
+        $meta = new CloudFile('f1', 'photo.jpg', false, 512, 'image/jpeg', null, null, null);
 
         $this->drives->shouldReceive('adapterFor')->with($drive)->andReturn($adapter);
         $adapter->shouldReceive('getMetadata')->with('f1')->andReturn($meta);
@@ -233,8 +238,8 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_zip_from_drive_flat_files(): void
     {
-        $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
+        $drive = $this->drive();
+        $adapter = Mockery::mock(CloudAdapter::class);
 
         $f1 = new CloudFile('id1', 'a.txt', false, 10, 'text/plain', null, null, null);
         $f2 = new CloudFile('id2', 'b.txt', false, 10, 'text/plain', null, null, null);
@@ -254,11 +259,11 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_zip_from_drive_recurses_into_folders(): void
     {
-        $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
+        $drive = $this->drive();
+        $adapter = Mockery::mock(CloudAdapter::class);
 
-        $folder  = new CloudFile('dir1', 'Docs', true, null, null, null, null, null);
-        $file    = new CloudFile('fid1', 'readme.md', false, 100, 'text/markdown', null, null, null);
+        $folder = new CloudFile('dir1', 'Docs', true, null, null, null, null, null);
+        $file = new CloudFile('fid1', 'readme.md', false, 100, 'text/markdown', null, null, null);
 
         $this->drives->shouldReceive('adapterFor')->andReturn($adapter);
         $adapter->shouldReceive('getMetadata')->with('dir1')->andReturn($folder);
@@ -274,8 +279,8 @@ class DownloadServiceTest extends PackageTestCase
 
     public function test_zip_from_drive_skips_failed_items(): void
     {
-        $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
+        $drive = $this->drive();
+        $adapter = Mockery::mock(CloudAdapter::class);
 
         $this->drives->shouldReceive('adapterFor')->andReturn($adapter);
         $adapter->shouldReceive('getMetadata')->andThrow(new RuntimeException('not found'));
@@ -291,33 +296,33 @@ class DownloadServiceTest extends PackageTestCase
     // ---------------------------------------------------------------
 
     private function mediaRecord(
-        string      $filename,
+        string $filename,
         AccessScope $scope,
-        string      $mime = 'application/octet-stream',
-        ?Workspace     $workspace = null,
+        string $mime = 'application/octet-stream',
+        ?Workspace $workspace = null,
     ): Media {
         $t = $workspace ?? $this->workspace;
 
         return Media::create([
-            'uuid'          => Str::uuid(),
-            'workspace_id'     => $t->id,
+            'uuid' => Str::uuid(),
+            'workspace_id' => $t->id,
             'original_name' => $filename,
-            'path'          => 'files/'.$filename,
-            'disk'          => 'public',
-            'access_scope'  => $scope->value,
-            'mime_type'     => $mime,
-            'status'        => 'READY',
+            'path' => 'files/'.$filename,
+            'disk' => 'public',
+            'access_scope' => $scope->value,
+            'mime_type' => $mime,
+            'status' => 'READY',
         ]);
     }
 
     private function drive(): ConnectedDrive
     {
         return ConnectedDrive::create([
-            'uuid'      => Str::uuid(),
+            'uuid' => Str::uuid(),
             'workspace_id' => $this->workspace->id,
-            'provider'  => CloudProvider::GOOGLE_DRIVE,
-            'name'      => 'My Drive',
-            'status'    => ConnectedDriveStatus::CONNECTED,
+            'provider' => CloudProvider::GOOGLE_DRIVE,
+            'name' => 'My Drive',
+            'status' => ConnectedDriveStatus::CONNECTED,
         ]);
     }
 

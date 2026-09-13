@@ -3,17 +3,17 @@
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters;
 
 use Google\Cloud\Storage\StorageClient;
-use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 use League\Flysystem\Filesystem;
+use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 
 final class GcsAdapter extends AbstractFlysystemAdapter
 {
     public function __construct(array $keyFile, string $bucket, string $pathPrefix = '')
     {
         $storageClient = new StorageClient(['keyFile' => $keyFile]);
-        $gcsBucket     = $storageClient->bucket($bucket);
-        $adapter       = new GoogleCloudStorageAdapter($gcsBucket, $pathPrefix);
-        $this->disk    = new Filesystem($adapter);
+        $gcsBucket = $storageClient->bucket($bucket);
+        $adapter = new GoogleCloudStorageAdapter($gcsBucket, $pathPrefix);
+        $this->disk = new Filesystem($adapter);
     }
 
     /**
@@ -23,6 +23,6 @@ final class GcsAdapter extends AbstractFlysystemAdapter
     {
         $keyFile = json_decode(file_get_contents($keyFilePath), true, 512, JSON_THROW_ON_ERROR);
 
-        return new static($keyFile, $bucket, $pathPrefix);
+        return new self($keyFile, $bucket, $pathPrefix);
     }
 }

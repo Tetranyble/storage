@@ -2,10 +2,11 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\S3Adapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\S3Adapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class S3AdapterTest extends PackageTestCase
 {
@@ -123,13 +124,13 @@ class S3AdapterTest extends PackageTestCase
     private function makeAdapterWithFakeDisk(): S3Adapter
     {
         $adapter = new S3Adapter(
-            bucket:   'test-bucket',
-            key:      'fake-key',
-            secret:   'fake-secret',
-            region:   'us-east-1',
+            bucket: 'test-bucket',
+            key: 'fake-key',
+            secret: 'fake-secret',
+            region: 'us-east-1',
         );
 
-        $ref  = new \ReflectionClass($adapter);
+        $ref = new \ReflectionClass($adapter);
         $prop = $ref->getProperty('disk');
         $prop->setAccessible(true);
         $prop->setValue($adapter, $this->fakeDisk());
@@ -137,7 +138,7 @@ class S3AdapterTest extends PackageTestCase
         return $adapter;
     }
 
-    private function fakeDisk(): \Illuminate\Contracts\Filesystem\Filesystem
+    private function fakeDisk(): Filesystem
     {
         return Storage::disk('s3-test');
     }

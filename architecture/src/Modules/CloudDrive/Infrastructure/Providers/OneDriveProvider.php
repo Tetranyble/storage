@@ -14,7 +14,9 @@ use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Mo
 final readonly class OneDriveProvider implements OAuthCloudProviderStrategy
 {
     private const AUTH_URL = 'https://login.microsoftonline.com/%s/oauth2/v2.0/authorize';
+
     private const TOKEN_URL = 'https://login.microsoftonline.com/%s/oauth2/v2.0/token';
+
     private const SCOPES = ['https://graph.microsoft.com/Files.ReadWrite.All', 'offline_access'];
 
     public function __construct(

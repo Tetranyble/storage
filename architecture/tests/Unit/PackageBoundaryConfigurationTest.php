@@ -6,11 +6,11 @@ use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\StoragePlacementPolicy;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Policies\ConfiguredStoragePlacementPolicy;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaContentInspector;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaScanner;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Policies\ConfiguredStoragePlacementPolicy;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredMediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredQuarantineStoragePolicy;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\FileSignatureMediaInspector;
@@ -35,7 +35,7 @@ class PackageBoundaryConfigurationTest extends PackageTestCase
     {
         config()->set('tetranyble-storage.placement.private_modules', ['sensitive']);
         config()->set('tetranyble-storage.placement.private_purposes', ['DOCUMENT']);
-        $policy = new ConfiguredStoragePlacementPolicy();
+        $policy = new ConfiguredStoragePlacementPolicy;
 
         $this->assertSame(Disk::PRIVATE, $policy->preferredDisk(new MediaUploadOptions(module: 'sensitive')));
         $this->assertSame(Disk::PRIVATE, $policy->preferredDisk(new MediaUploadOptions(purpose: MediaPurpose::DOCUMENT)));

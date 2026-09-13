@@ -11,13 +11,13 @@ use Tetranyble\Storage\Support\StorageConfig;
 final class WorkspaceRouteResolver
 {
     /** @template TModel of Model
-     *  @param class-string<TModel> $modelClass
-     *  @return TModel
+     * @param  class-string<TModel>  $modelClass
+     * @return TModel
      */
     public function resolve(string $modelClass, Model $workspace, string|int $key, bool $withTrashed = false): Model
     {
         /** @var TModel $prototype */
-        $prototype = new $modelClass();
+        $prototype = new $modelClass;
         $query = $modelClass::query()->where(StorageConfig::resourceWorkspaceForeignKey(), $workspace->getKey());
 
         if ($withTrashed && in_array(SoftDeletes::class, class_uses_recursive($modelClass), true)) {
@@ -35,7 +35,7 @@ final class WorkspaceRouteResolver
         })->first();
 
         if (! $resource instanceof Model) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         return $resource;

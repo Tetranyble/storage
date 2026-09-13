@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers;
 
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
@@ -17,7 +18,7 @@ final class S3Provider implements CloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['league/flysystem-aws-s3-v3' => \League\Flysystem\AwsS3V3\AwsS3V3Adapter::class];
+        return ['league/flysystem-aws-s3-v3' => AwsS3V3Adapter::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

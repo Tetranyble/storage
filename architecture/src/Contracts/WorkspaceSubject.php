@@ -2,7 +2,6 @@
 
 namespace Tetranyble\Storage\Contracts;
 
-
 interface WorkspaceSubject
 {
     /**
@@ -12,8 +11,6 @@ interface WorkspaceSubject
 
     /**
      * Return the workspace identifier when only the key is available.
-     *
-     * @return int|string|null
      */
     public function getStorageWorkspaceIdentifier(): int|string|null;
 }

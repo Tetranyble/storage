@@ -17,18 +17,18 @@ interface SupportsSameDriveOperations
     /**
      * Copy a file within the same drive without downloading the binary.
      *
-     * @param  string  $fileId          Remote file ID on this drive.
+     * @param  string  $fileId  Remote file ID on this drive.
      * @param  string  $targetFolderId  Destination folder ID (or 'root').
-     * @param  string  $name            Name for the new copy.
+     * @param  string  $name  Name for the new copy.
      */
     public function copyFileSameDrive(string $fileId, string $targetFolderId, string $name): CloudFile;
 
     /**
      * Move a file within the same drive without downloading the binary.
      *
-     * @param  string  $fileId          Remote file ID on this drive.
+     * @param  string  $fileId  Remote file ID on this drive.
      * @param  string  $targetFolderId  Destination folder ID (or 'root').
-     * @param  string  $name            New name (pass original name to keep it).
+     * @param  string  $name  New name (pass original name to keep it).
      */
     public function moveFileSameDrive(string $fileId, string $targetFolderId, string $name): CloudFile;
 }

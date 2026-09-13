@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Spatie\Dropbox\Client;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\DropboxAdapter;
@@ -14,6 +15,7 @@ use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Mo
 final readonly class DropboxProvider implements OAuthCloudProviderStrategy
 {
     private const AUTH_URL = 'https://www.dropbox.com/oauth2/authorize';
+
     private const TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
 
     public function __construct(
@@ -29,7 +31,7 @@ final readonly class DropboxProvider implements OAuthCloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['spatie/dropbox-api' => \Spatie\Dropbox\Client::class];
+        return ['spatie/dropbox-api' => Client::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

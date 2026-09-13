@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models;
 
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
-use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
+use Tetranyble\Storage\Support\StorageConfig;
 
 class Workspace extends Model
 {
@@ -24,7 +24,7 @@ class Workspace extends Model
 
     protected $casts = [
         'storage_quota_bytes' => 'int',
-        'storage_used_bytes'  => 'int',
+        'storage_used_bytes' => 'int',
     ];
 
     public function connectedDrives(): HasMany

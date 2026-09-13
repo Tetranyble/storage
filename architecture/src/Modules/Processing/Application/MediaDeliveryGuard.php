@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Modules\Processing\Application;
 
-use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
 
 class MediaDeliveryGuard
 {

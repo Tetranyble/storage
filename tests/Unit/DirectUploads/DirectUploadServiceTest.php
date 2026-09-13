@@ -3,25 +3,25 @@
 namespace Tetranyble\Storage\Tests\Unit\DirectUploads;
 
 use Illuminate\Support\Facades\Event;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\Contracts\DirectUploadGateway;
 use Tetranyble\Storage\Modules\DirectUpload\Application\Contracts\DirectUploadManager;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadObject;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\ETag;
-use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
-use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\MimeType;
-use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\Sha256Checksum;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\Contracts\DirectUploadGateway;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadObject;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Exceptions\DirectUploadConflictException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\ETag;
 use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\MimeType;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\Sha256Checksum;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\DirectUploads\FakeDirectUploadGateway;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
@@ -37,7 +37,7 @@ class DirectUploadServiceTest extends PackageTestCase
         config()->set('tetranyble-storage.direct_uploads.multipart_threshold', 6 * 1024 * 1024);
         config()->set('tetranyble-storage.direct_uploads.part_size', 5 * 1024 * 1024);
 
-        $this->gateway = new FakeDirectUploadGateway();
+        $this->gateway = new FakeDirectUploadGateway;
         $this->app->instance(DirectUploadGateway::class, $this->gateway);
     }
 

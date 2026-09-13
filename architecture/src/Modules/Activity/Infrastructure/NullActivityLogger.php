@@ -3,7 +3,6 @@
 namespace Tetranyble\Storage\Modules\Activity\Infrastructure;
 
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Illuminate\Database\Eloquent\Model;
 
 class NullActivityLogger implements ActivityLogger
 {

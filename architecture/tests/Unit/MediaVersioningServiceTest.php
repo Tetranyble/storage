@@ -2,17 +2,18 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaVersioningServiceTest extends PackageTestCase
 {
@@ -78,8 +79,8 @@ class MediaVersioningServiceTest extends PackageTestCase
         $groupUuid = (string) Str::uuid();
         $existing = $this->makeMedia([
             'version_group_uuid' => $groupUuid,
-            'version_number'     => 1,
-            'current'            => true,
+            'version_number' => 1,
+            'current' => true,
         ]);
 
         [$returnedGroup, $versionNumber, $previousId] = $this->service->prepareContext($existing);
@@ -274,14 +275,14 @@ class MediaVersioningServiceTest extends PackageTestCase
     public function test_version_fields_not_mass_assignable_via_create(): void
     {
         $media = Media::create([
-            'version_group_uuid'  => 'should-not-be-set',
-            'version_number'      => 99,
-            'current'             => true,
+            'version_group_uuid' => 'should-not-be-set',
+            'version_number' => 99,
+            'current' => true,
             'previous_version_id' => 1,
-            'path'                => 'test/file.txt',
-            'disk'                => Disk::PRIVATE,
-            'use'                 => MediaPurpose::GENERAL,
-            'status'              => MediaStatus::READY,
+            'path' => 'test/file.txt',
+            'disk' => Disk::PRIVATE,
+            'use' => MediaPurpose::GENERAL,
+            'status' => MediaStatus::READY,
         ]);
 
         $fresh = $media->fresh();
@@ -304,9 +305,9 @@ class MediaVersioningServiceTest extends PackageTestCase
     private function makeMedia(array $attrs = []): Media
     {
         $defaults = [
-            'path'   => 'test/'.Str::random(8).'.txt',
-            'disk'   => Disk::PRIVATE,
-            'use'    => MediaPurpose::GENERAL,
+            'path' => 'test/'.Str::random(8).'.txt',
+            'disk' => Disk::PRIVATE,
+            'use' => MediaPurpose::GENERAL,
             'status' => MediaStatus::READY,
         ];
 
@@ -324,12 +325,12 @@ class MediaVersioningServiceTest extends PackageTestCase
         return $media->fresh();
     }
 
-    private function makeUser(Workspace $workspace): \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User
+    private function makeUser(Workspace $workspace): User
     {
-        return \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::create([
-            'name'      => 'Actor',
-            'email'     => 'actor'.Str::random(4).'@example.com',
-            'password'  => bcrypt('secret'),
+        return User::create([
+            'name' => 'Actor',
+            'email' => 'actor'.Str::random(4).'@example.com',
+            'password' => bcrypt('secret'),
             'workspace_id' => $workspace->id,
         ]);
     }

@@ -2,27 +2,32 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\CommentService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\CommentService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class CommentServiceTest extends PackageTestCase
 {
     private MockInterface $access;
+
     private CommentService $service;
+
     private Workspace $workspace;
+
     private User $user;
+
     private Folder $folder;
+
     private Media $media;
 
     protected function setUp(): void
@@ -37,22 +42,22 @@ class CommentServiceTest extends PackageTestCase
         $this->service = new CommentService($this->access);
 
         $this->workspace = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
-        $this->user   = User::create(['name' => 'Bob', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $this->user = User::create(['name' => 'Bob', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
         $this->folder = Folder::create([
             'workspace_id' => $this->workspace->id,
-            'name'      => 'Root',
-            'slug'      => 'root',
-            'path'      => '/',
-            'uuid'      => Str::uuid(),
+            'name' => 'Root',
+            'slug' => 'root',
+            'path' => '/',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->media = Media::create([
             'workspace_id' => $this->workspace->id,
             'folder_id' => $this->folder->id,
-            'uuid'      => Str::uuid(),
-            'disk'      => 'public',
-            'path'      => 'doc.pdf',
+            'uuid' => Str::uuid(),
+            'disk' => 'public',
+            'path' => 'doc.pdf',
         ]);
     }
 
@@ -79,7 +84,7 @@ class CommentServiceTest extends PackageTestCase
     public function test_add_reply_links_parent(): void
     {
         $parent = $this->service->addComment($this->workspace, $this->folder, $this->user, 'Parent');
-        $reply  = $this->service->addComment($this->workspace, $this->folder, $this->user, 'Reply', $parent);
+        $reply = $this->service->addComment($this->workspace, $this->folder, $this->user, 'Reply', $parent);
 
         $this->assertSame($parent->id, $reply->parent_id);
     }
@@ -94,7 +99,7 @@ class CommentServiceTest extends PackageTestCase
 
     public function test_add_comment_rejects_wrong_workspace_resource(): void
     {
-        $other   = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
+        $other = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $folder2 = Folder::create(['workspace_id' => $other->id, 'name' => 'X', 'slug' => 'x', 'path' => '/x', 'uuid' => Str::uuid()]);
 
         $this->expectException(ResourceNotFoundException::class);
@@ -105,12 +110,12 @@ class CommentServiceTest extends PackageTestCase
     public function test_edit_comment_updates_body_and_edited_at(): void
     {
         $comment = Comment::create([
-            'workspace_id'        => $this->workspace->id,
-            'user_id'          => $this->user->id,
+            'workspace_id' => $this->workspace->id,
+            'user_id' => $this->user->id,
             'commentable_type' => Folder::class,
-            'commentable_id'   => $this->folder->id,
-            'body'             => 'Original',
-            'uuid'             => Str::uuid(),
+            'commentable_id' => $this->folder->id,
+            'body' => 'Original',
+            'uuid' => Str::uuid(),
         ]);
 
         $updated = $this->service->editComment($this->workspace, $comment, $this->user, 'Updated');
@@ -122,14 +127,14 @@ class CommentServiceTest extends PackageTestCase
 
     public function test_edit_comment_rejects_non_owner(): void
     {
-        $other   = User::create(['name' => 'Carol', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $other = User::create(['name' => 'Carol', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
         $comment = Comment::create([
-            'workspace_id'        => $this->workspace->id,
-            'user_id'          => $this->user->id,
+            'workspace_id' => $this->workspace->id,
+            'user_id' => $this->user->id,
             'commentable_type' => Folder::class,
-            'commentable_id'   => $this->folder->id,
-            'body'             => 'Mine',
-            'uuid'             => Str::uuid(),
+            'commentable_id' => $this->folder->id,
+            'body' => 'Mine',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->expectException(AccessDeniedException::class);
@@ -140,12 +145,12 @@ class CommentServiceTest extends PackageTestCase
     public function test_delete_comment_soft_deletes_by_owner(): void
     {
         $comment = Comment::create([
-            'workspace_id'        => $this->workspace->id,
-            'user_id'          => $this->user->id,
+            'workspace_id' => $this->workspace->id,
+            'user_id' => $this->user->id,
             'commentable_type' => Folder::class,
-            'commentable_id'   => $this->folder->id,
-            'body'             => 'Delete me',
-            'uuid'             => Str::uuid(),
+            'commentable_id' => $this->folder->id,
+            'body' => 'Delete me',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->service->deleteComment($this->workspace, $comment, $this->user);
@@ -157,14 +162,14 @@ class CommentServiceTest extends PackageTestCase
     {
         $this->access->shouldReceive('canManagePermissions')->andReturn(true);
 
-        $other   = User::create(['name' => 'Mod', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
+        $other = User::create(['name' => 'Mod', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
         $comment = Comment::create([
-            'workspace_id'        => $this->workspace->id,
-            'user_id'          => $this->user->id,
+            'workspace_id' => $this->workspace->id,
+            'user_id' => $this->user->id,
             'commentable_type' => Folder::class,
-            'commentable_id'   => $this->folder->id,
-            'body'             => 'Offensive',
-            'uuid'             => Str::uuid(),
+            'commentable_id' => $this->folder->id,
+            'body' => 'Offensive',
+            'uuid' => Str::uuid(),
         ]);
 
         $this->service->deleteComment($this->workspace, $comment, $other);

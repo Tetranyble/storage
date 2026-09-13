@@ -33,6 +33,7 @@ foreach ($files as $path => $lineCount) {
         if ($lineCount > (int) $baselineLimit) {
             $failures[] = "{$path} grew from {$baselineLimit} to {$lineCount} lines; oversized files may only shrink.";
         }
+
         continue;
     }
 

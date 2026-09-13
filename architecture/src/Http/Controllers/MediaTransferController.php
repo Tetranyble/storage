@@ -9,8 +9,8 @@ use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
 use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStorageTransferService;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 
 class MediaTransferController extends StorageController
 {

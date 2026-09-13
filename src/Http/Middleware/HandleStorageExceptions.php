@@ -6,26 +6,26 @@ use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tetranyble\Storage\Http\Responses\ApiErrorResponder;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Exceptions\DirectUploadConflictException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\StorageException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\InvalidSharePasswordException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadLimitReachedException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadNotAllowedException;
 use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareExpiredException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\StorageException;
 use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 
 final class HandleStorageExceptions
 {
-    public function __construct(private readonly ApiErrorResponder $errors = new ApiErrorResponder()) {}
+    public function __construct(private readonly ApiErrorResponder $errors = new ApiErrorResponder) {}
 
     public function handle(Request $request, Closure $next): mixed
     {
@@ -46,6 +46,7 @@ final class HandleStorageExceptions
             return $this->translate($request, $exception, 404, 'resource_not_found', 'Resource not found.');
         } catch (StorageException $exception) {
             $status = $this->statusFor($exception);
+
             return $this->translate($request, $exception, $status, $this->codeFor($exception), $this->messageFor($exception));
         } catch (HttpException $exception) {
             if (! $request->expectsJson()) {
@@ -89,12 +90,9 @@ final class HandleStorageExceptions
     public function render(Request $request, \Throwable $exception): ?JsonResponse
     {
         return match (true) {
-            $exception instanceof AuthenticationRequiredException =>
-                $this->errors->error('authentication_required', 'Authentication is required.', 401),
-            $exception instanceof AccessDeniedException =>
-                $this->errors->error('access_denied', 'Access denied.', 403),
-            $exception instanceof ResourceNotFoundException =>
-                $this->errors->error('resource_not_found', 'Resource not found.', 404),
+            $exception instanceof AuthenticationRequiredException => $this->errors->error('authentication_required', 'Authentication is required.', 401),
+            $exception instanceof AccessDeniedException => $this->errors->error('access_denied', 'Access denied.', 403),
+            $exception instanceof ResourceNotFoundException => $this->errors->error('resource_not_found', 'Resource not found.', 404),
             $exception instanceof StorageException => $this->errors->error(
                 $this->codeFor($exception),
                 $this->messageFor($exception),

@@ -86,7 +86,6 @@ final class StorageConfigurationValidator
         }
     }
 
-
     private function assertQueueTiming(): void
     {
         if (! $this->bool('tetranyble-storage.processing.enabled', true)

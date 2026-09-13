@@ -33,7 +33,6 @@ if (! str_contains($service, 'providerRegistry()->adapterFor($drive)')) {
     $failures[] = 'ConnectedDriveService does not delegate adapter resolution to CloudProviderRegistry.';
 }
 
-
 $oauthPath = $root.'/src/Modules/CloudDrive/Infrastructure/OAuthService.php';
 $oauth = (string) file_get_contents($oauthPath);
 foreach (['match($provider)', 'match($drive->provider)', 'CloudProvider::GOOGLE_DRIVE =>', 'CloudProvider::ONEDRIVE =>', 'CloudProvider::DROPBOX =>'] as $forbidden) {
@@ -61,6 +60,7 @@ foreach ($providers as $file) {
     $path = $providerDir.'/'.$file;
     if (! is_file($path)) {
         $failures[] = "Missing cloud provider strategy: {$file}.";
+
         continue;
     }
 

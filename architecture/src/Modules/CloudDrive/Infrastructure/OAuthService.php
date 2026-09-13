@@ -2,13 +2,14 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure;
 
-use Throwable;
+use Carbon\Carbon;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\CloudProviderRegistry;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\DefaultCloudProviderRegistryFactory;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Throwable;
 
 class OAuthService
 {
@@ -27,7 +28,7 @@ class OAuthService
         return $this->providerRegistry()->oauthStrategy($provider)->buildAuthUrl($state, $extraScopes);
     }
 
-    /** @return array{access_token: string, refresh_token: string|null, expires_at: \Carbon\Carbon} */
+    /** @return array{access_token: string, refresh_token: string|null, expires_at: Carbon} */
     public function exchangeCode(CloudProvider $provider, string $code): array
     {
         return $this->providerRegistry()->oauthStrategy($provider)->exchangeCode($code);
@@ -70,7 +71,7 @@ class OAuthService
     {
         return $this->providers
             ?? ($this->resolvedProviders ??= DefaultCloudProviderRegistryFactory::make(
-                new CloudProviderDependencyGuard(),
+                new CloudProviderDependencyGuard,
                 $this->config,
             ));
     }

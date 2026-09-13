@@ -2,19 +2,21 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\CloudinaryAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Cloudinary\Api\Admin\AdminApi;
 use Cloudinary\Api\Upload\UploadApi;
 use Illuminate\Support\Facades\Http;
 use Mockery;
 use Mockery\MockInterface;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\CloudinaryAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class CloudinaryAdapterTest extends PackageTestCase
 {
     private MockInterface $uploadApi;
+
     private MockInterface $adminApi;
+
     private CloudinaryAdapter $adapter;
 
     protected function setUp(): void
@@ -22,7 +24,7 @@ class CloudinaryAdapterTest extends PackageTestCase
         parent::setUp();
 
         $this->uploadApi = Mockery::mock(UploadApi::class);
-        $this->adminApi  = Mockery::mock(AdminApi::class);
+        $this->adminApi = Mockery::mock(AdminApi::class);
 
         $this->adapter = new CloudinaryAdapter('my-cloud', 'key', 'secret');
         $this->adapter->setUploadApi($this->uploadApi);
@@ -101,12 +103,12 @@ class CloudinaryAdapterTest extends PackageTestCase
     {
         $this->uploadApi->allows('upload')
             ->andReturn([
-                'public_id'     => 'docs/report',
-                'bytes'         => 9,
+                'public_id' => 'docs/report',
+                'bytes' => 9,
                 'resource_type' => 'raw',
-                'format'        => 'pdf',
-                'secure_url'    => 'https://cdn/report.pdf',
-                'created_at'    => '2024-01-01T00:00:00Z',
+                'format' => 'pdf',
+                'secure_url' => 'https://cdn/report.pdf',
+                'created_at' => '2024-01-01T00:00:00Z',
             ]);
 
         $result = $this->adapter->putFile('docs', 'report.pdf', 'pdf bytes', 'application/pdf');
@@ -134,12 +136,12 @@ class CloudinaryAdapterTest extends PackageTestCase
         $this->adminApi->allows('asset')
             ->with('product/shot')
             ->andReturn([
-                'public_id'     => 'product/shot',
-                'bytes'         => 5120,
+                'public_id' => 'product/shot',
+                'bytes' => 5120,
                 'resource_type' => 'image',
-                'format'        => 'jpg',
-                'secure_url'    => 'https://cdn/shot.jpg',
-                'created_at'    => '2024-06-01T00:00:00Z',
+                'format' => 'jpg',
+                'secure_url' => 'https://cdn/shot.jpg',
+                'created_at' => '2024-06-01T00:00:00Z',
             ]);
 
         $result = $this->adapter->getMetadata('product/shot');

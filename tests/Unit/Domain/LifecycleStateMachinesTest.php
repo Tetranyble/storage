@@ -97,7 +97,7 @@ final class LifecycleStateMachinesTest extends TestCase
         $policy = new ShareAccessPolicy(ShareAccessLevel::DOWNLOAD, null, 2, 2, false);
 
         $this->expectException(ShareDownloadLimitReachedException::class);
-        $policy->assertAccessible(new DateTimeImmutable());
+        $policy->assertAccessible(new DateTimeImmutable);
     }
 
     public function test_share_policy_rejects_download_for_view_only_share(): void
@@ -105,7 +105,7 @@ final class LifecycleStateMachinesTest extends TestCase
         $policy = new ShareAccessPolicy(ShareAccessLevel::VIEW, null, null, 0, false);
 
         $this->expectException(ShareDownloadNotAllowedException::class);
-        $policy->assertDownloadAllowed(new DateTimeImmutable());
+        $policy->assertDownloadAllowed(new DateTimeImmutable);
     }
 
     public function test_version_group_reservation_survives_stale_allocator(): void

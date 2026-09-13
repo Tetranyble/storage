@@ -20,7 +20,7 @@ interface CloudProviderStrategy
      * Strategies may also perform a lightweight remote probe when that is part of the
      * provider's established connection contract.
      *
-     * @param array<string, mixed> $credentials
+     * @param  array<string, mixed>  $credentials
      */
     public function prepareCredentials(array $credentials): void;
 }

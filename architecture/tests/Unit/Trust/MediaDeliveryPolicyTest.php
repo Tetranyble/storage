@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Tests\Unit\Trust;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredMediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredQuarantineStoragePolicy;
 use Tetranyble\Storage\Tests\PackageTestCase;
@@ -18,7 +18,7 @@ class MediaDeliveryPolicyTest extends PackageTestCase
         config()->set('tetranyble-storage.trust.virus_scanning.enabled', true);
         config()->set('tetranyble-storage.trust.quarantine_until_clean', true);
 
-        $policy = new ConfiguredMediaDeliveryPolicy();
+        $policy = new ConfiguredMediaDeliveryPolicy;
 
         $this->assertFalse($policy->canDeliver(VirusScanStatus::PENDING, MediaProcessingStatus::QUEUED));
         $this->expectException(MediaQuarantinedException::class);
@@ -29,7 +29,7 @@ class MediaDeliveryPolicyTest extends PackageTestCase
     {
         config()->set('tetranyble-storage.trust.virus_scanning.enabled', true);
 
-        $policy = new ConfiguredMediaDeliveryPolicy();
+        $policy = new ConfiguredMediaDeliveryPolicy;
 
         $this->assertTrue($policy->canDeliver(VirusScanStatus::CLEAN, MediaProcessingStatus::READY));
     }
@@ -38,7 +38,7 @@ class MediaDeliveryPolicyTest extends PackageTestCase
     {
         config()->set('tetranyble-storage.trust.virus_scanning.enabled', false);
 
-        $policy = new ConfiguredMediaDeliveryPolicy();
+        $policy = new ConfiguredMediaDeliveryPolicy;
 
         $this->assertFalse($policy->canDeliver(VirusScanStatus::INFECTED, MediaProcessingStatus::BLOCKED));
     }
@@ -47,7 +47,7 @@ class MediaDeliveryPolicyTest extends PackageTestCase
     {
         config()->set('tetranyble-storage.trust.virus_scanning.enabled', true);
         config()->set('tetranyble-storage.trust.allow_on_scan_failure', false);
-        $policy = new ConfiguredMediaDeliveryPolicy();
+        $policy = new ConfiguredMediaDeliveryPolicy;
 
         $this->assertFalse($policy->canDeliver(VirusScanStatus::FAILED, MediaProcessingStatus::FAILED));
 
@@ -61,7 +61,7 @@ class MediaDeliveryPolicyTest extends PackageTestCase
         config()->set('tetranyble-storage.trust.quarantine_until_clean', true);
         config()->set('tetranyble-storage.trust.require_private_storage', true);
 
-        $policy = new ConfiguredQuarantineStoragePolicy();
+        $policy = new ConfiguredQuarantineStoragePolicy;
         $policy->assertStorageSafe(Disk::PRIVATE);
         $this->addToAssertionCount(1);
 

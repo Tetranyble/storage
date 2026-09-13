@@ -24,6 +24,7 @@ foreach (glob($moduleRoot.'/*', GLOB_ONLYDIR) ?: [] as $directory) {
     $module = basename($directory);
     if (! isset($knownSet[$module])) {
         $failures[] = "Uncatalogued module: {$module}.";
+
         continue;
     }
 
@@ -51,6 +52,7 @@ foreach (glob($moduleRoot.'/*', GLOB_ONLYDIR) ?: [] as $directory) {
         foreach (array_unique($matches[1] ?? []) as $dependency) {
             if (! isset($knownSet[$dependency])) {
                 $failures[] = "{$relative} references unknown module {$dependency}.";
+
                 continue;
             }
             if ($dependency === $module) {
@@ -86,4 +88,4 @@ if ($failures !== []) {
 
 $edgeCount = array_sum(array_map('count', $edges));
 $baselineCount = array_sum(array_map('count', $baseline['allowed_edges']));
-echo "Module boundaries passed: ".count($known)." modules, {$edgeCount}/{$baselineCount} transitional cross-module edges remain.\n";
+echo 'Module boundaries passed: '.count($known)." modules, {$edgeCount}/{$baselineCount} transitional cross-module edges remain.\n";

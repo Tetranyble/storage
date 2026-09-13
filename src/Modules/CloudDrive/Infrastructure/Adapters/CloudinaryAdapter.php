@@ -3,14 +3,14 @@
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters;
 
 use Carbon\Carbon;
-use Cloudinary\Cloudinary;
 use Cloudinary\Api\Admin\AdminApi;
 use Cloudinary\Api\Upload\UploadApi;
+use Cloudinary\Cloudinary;
 use Cloudinary\Configuration\Configuration;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 
 /**
  * CloudAdapter for Cloudinary.
@@ -28,8 +28,10 @@ use RuntimeException;
 class CloudinaryAdapter implements CloudAdapter
 {
     private Cloudinary $cloudinary;
-    private UploadApi  $uploadApi;
-    private AdminApi   $adminApi;
+
+    private UploadApi $uploadApi;
+
+    private AdminApi $adminApi;
 
     public function __construct(
         private string $cloudName,
@@ -39,21 +41,21 @@ class CloudinaryAdapter implements CloudAdapter
         $config = Configuration::instance([
             'cloud' => [
                 'cloud_name' => $cloudName,
-                'api_key'    => $apiKey,
+                'api_key' => $apiKey,
                 'api_secret' => $apiSecret,
             ],
             'url' => ['secure' => true],
         ]);
 
         $this->cloudinary = new Cloudinary($config);
-        $this->uploadApi  = $this->cloudinary->uploadApi();
-        $this->adminApi   = $this->cloudinary->adminApi();
+        $this->uploadApi = $this->cloudinary->uploadApi();
+        $this->adminApi = $this->cloudinary->adminApi();
     }
 
     public function listFolder(string $folderId = 'root'): array
     {
-        $prefix   = $folderId === 'root' ? '' : rtrim($folderId, '/').'/';
-        $results  = [];
+        $prefix = $folderId === 'root' ? '' : rtrim($folderId, '/').'/';
+        $results = [];
 
         // List sub-folders
         $folderResponse = $prefix === ''
@@ -62,15 +64,15 @@ class CloudinaryAdapter implements CloudAdapter
 
         foreach ($folderResponse['folders'] ?? [] as $folder) {
             $results[] = new CloudFile(
-                id:           $folder['path'],
-                name:         $folder['name'],
-                isFolder:     true,
-                size:         null,
-                mimeType:     null,
-                webViewLink:  null,
+                id: $folder['path'],
+                name: $folder['name'],
+                isFolder: true,
+                size: null,
+                mimeType: null,
+                webViewLink: null,
                 thumbnailUrl: null,
-                modifiedAt:   null,
-                parentId:     $folderId,
+                modifiedAt: null,
+                parentId: $folderId,
             );
         }
 
@@ -78,9 +80,9 @@ class CloudinaryAdapter implements CloudAdapter
         $nextCursor = null;
         do {
             $options = [
-                'type'        => 'upload',
+                'type' => 'upload',
                 'max_results' => 500,
-                'prefix'      => $prefix,
+                'prefix' => $prefix,
             ];
             if ($nextCursor) {
                 $options['next_cursor'] = $nextCursor;
@@ -109,7 +111,7 @@ class CloudinaryAdapter implements CloudAdapter
     public function getFileBinary(string $fileId): string
     {
         $meta = $this->adminApi->asset($fileId);
-        $url  = $meta['secure_url'] ?? null;
+        $url = $meta['secure_url'] ?? null;
 
         if (! $url) {
             throw new RuntimeException("Cannot resolve download URL for Cloudinary asset: {$fileId}");
@@ -126,17 +128,17 @@ class CloudinaryAdapter implements CloudAdapter
 
     public function putFile(string $folderId, string $name, string $binary, string $mimeType = 'application/octet-stream'): CloudFile
     {
-        $folder   = $folderId === 'root' ? '' : rtrim($folderId, '/');
+        $folder = $folderId === 'root' ? '' : rtrim($folderId, '/');
         $basename = pathinfo($name, PATHINFO_FILENAME);
         $publicId = $folder !== '' ? "{$folder}/{$basename}" : $basename;
 
         $result = $this->uploadApi->upload(
             'data:'.($mimeType ?: 'application/octet-stream').';base64,'.base64_encode($binary),
             [
-                'public_id'     => $publicId,
+                'public_id' => $publicId,
                 'resource_type' => 'auto',
-                'overwrite'     => true,
-                'use_filename'  => true,
+                'overwrite' => true,
+                'use_filename' => true,
             ]
         );
 
@@ -148,6 +150,7 @@ class CloudinaryAdapter implements CloudAdapter
         // Try as a folder first
         try {
             $this->adminApi->deleteFolder($fileId);
+
             return;
         } catch (\Throwable) {
             // Not a folder — delete as asset
@@ -165,15 +168,15 @@ class CloudinaryAdapter implements CloudAdapter
         $this->adminApi->createFolder($path);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     true,
-            size:         null,
-            mimeType:     null,
-            webViewLink:  null,
+            id: $path,
+            name: $name,
+            isFolder: true,
+            size: null,
+            mimeType: null,
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $parentId,
+            modifiedAt: Carbon::now(),
+            parentId: $parentId,
         );
     }
 
@@ -181,6 +184,7 @@ class CloudinaryAdapter implements CloudAdapter
     {
         try {
             $meta = $this->adminApi->asset($fileId);
+
             return $this->toCloudFile($meta, null);
         } catch (\Throwable $e) {
             throw new RuntimeException("Cloudinary asset not found: {$fileId}", 0, $e);
@@ -211,7 +215,7 @@ class CloudinaryAdapter implements CloudAdapter
     private function toCloudFile(array $asset, ?string $parentId): CloudFile
     {
         $publicId = $asset['public_id'] ?? '';
-        $name     = basename($publicId);
+        $name = basename($publicId);
 
         $parent = $parentId ?? (
             str_contains($publicId, '/')
@@ -225,31 +229,31 @@ class CloudinaryAdapter implements CloudAdapter
         }
 
         return new CloudFile(
-            id:           $publicId,
-            name:         $name,
-            isFolder:     false,
-            size:         isset($asset['bytes']) ? (int) $asset['bytes'] : null,
-            mimeType:     $asset['format'] ? $this->guessMediaType($asset) : null,
-            webViewLink:  $asset['secure_url'] ?? null,
+            id: $publicId,
+            name: $name,
+            isFolder: false,
+            size: isset($asset['bytes']) ? (int) $asset['bytes'] : null,
+            mimeType: $asset['format'] ? $this->guessMediaType($asset) : null,
+            webViewLink: $asset['secure_url'] ?? null,
             thumbnailUrl: $asset['secure_url'] ?? null,
-            modifiedAt:   $modifiedAt,
-            parentId:     $parent,
+            modifiedAt: $modifiedAt,
+            parentId: $parent,
         );
     }
 
     private function guessMediaType(array $asset): ?string
     {
         $resourceType = $asset['resource_type'] ?? 'image';
-        $format       = $asset['format'] ?? null;
+        $format = $asset['format'] ?? null;
 
         if (! $format) {
             return null;
         }
 
-        return match($resourceType) {
+        return match ($resourceType) {
             'image' => 'image/'.$format,
             'video' => 'video/'.$format,
-            'raw'   => 'application/octet-stream',
+            'raw' => 'application/octet-stream',
             default => null,
         };
     }

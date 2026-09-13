@@ -4,14 +4,14 @@ namespace Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\StoragePlacementPolicy;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 
 /**
  * Resolves storage placement, package folder placement and deterministic path

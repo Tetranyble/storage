@@ -1,23 +1,31 @@
 <?php
 
 namespace Tetranyble\Storage\Http\Controllers;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Tetranyble\Storage\Modules\Folder\Application\{CreateFolder, EmptyTrash};
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
+use Tetranyble\Storage\Modules\Folder\Application\EmptyTrash;
 use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
 use Tetranyble\Storage\Modules\Media\Application\MoveMedia;
 use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
 use Tetranyble\Storage\Modules\Media\Application\RestoreMedia;
 use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
 use Tetranyble\Storage\Modules\Media\Application\UploadMedia;
-use Tetranyble\Storage\Http\{Contracts\WorkspaceContext, Routing\WorkspaceRouteResolver};
-use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
 use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
 use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Workspace\Application\Contracts\WorkspaceReadModel;
-use Tetranyble\Storage\Modules\Workspace\Application\Queries\{ActivityWorkspace, BrowseWorkspace, RecentWorkspace, SearchWorkspace, TrashWorkspace};
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\ActivityWorkspace;
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\BrowseWorkspace;
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\RecentWorkspace;
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\SearchWorkspace;
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\TrashWorkspace;
+
 class MediaLibraryController extends StorageController
 {
     public function __construct(

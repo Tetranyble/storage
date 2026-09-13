@@ -22,31 +22,31 @@ class EloquentRelationshipResolutionTest extends PackageTestCase
 {
     public function test_modularized_model_relationships_resolve_the_intended_related_classes(): void
     {
-        $this->assertRelated(new Workspace(), 'connectedDrives', ConnectedDrive::class);
+        $this->assertRelated(new Workspace, 'connectedDrives', ConnectedDrive::class);
 
-        $this->assertRelated(new UploadSession(), 'folder', Folder::class);
-        $this->assertRelated(new UploadSession(), 'media', Media::class);
-        $this->assertRelated(new UploadSession(), 'chunks', UploadSessionChunk::class);
+        $this->assertRelated(new UploadSession, 'folder', Folder::class);
+        $this->assertRelated(new UploadSession, 'media', Media::class);
+        $this->assertRelated(new UploadSession, 'chunks', UploadSessionChunk::class);
 
-        $this->assertRelated(new DirectUploadSession(), 'folder', Folder::class);
-        $this->assertRelated(new DirectUploadSession(), 'media', Media::class);
+        $this->assertRelated(new DirectUploadSession, 'folder', Folder::class);
+        $this->assertRelated(new DirectUploadSession, 'media', Media::class);
 
-        $this->assertRelated(new MediaDerivative(), 'media', Media::class);
+        $this->assertRelated(new MediaDerivative, 'media', Media::class);
 
-        $this->assertRelated(new Media(), 'folder', Folder::class);
-        $this->assertRelated(new Media(), 'shares', MediaShare::class);
-        $this->assertRelated(new Media(), 'collaborators', CollaboratorGrant::class);
-        $this->assertRelated(new Media(), 'activities', Activity::class);
-        $this->assertRelated(new Media(), 'stars', ResourceStar::class);
-        $this->assertRelated(new Media(), 'comments', Comment::class);
-        $this->assertRelated(new Media(), 'derivatives', MediaDerivative::class);
+        $this->assertRelated(new Media, 'folder', Folder::class);
+        $this->assertRelated(new Media, 'shares', MediaShare::class);
+        $this->assertRelated(new Media, 'collaborators', CollaboratorGrant::class);
+        $this->assertRelated(new Media, 'activities', Activity::class);
+        $this->assertRelated(new Media, 'stars', ResourceStar::class);
+        $this->assertRelated(new Media, 'comments', Comment::class);
+        $this->assertRelated(new Media, 'derivatives', MediaDerivative::class);
 
-        $this->assertRelated(new Folder(), 'media', Media::class);
-        $this->assertRelated(new Folder(), 'shares', MediaShare::class);
-        $this->assertRelated(new Folder(), 'collaborators', CollaboratorGrant::class);
-        $this->assertRelated(new Folder(), 'activities', Activity::class);
-        $this->assertRelated(new Folder(), 'stars', ResourceStar::class);
-        $this->assertRelated(new Folder(), 'comments', Comment::class);
+        $this->assertRelated(new Folder, 'media', Media::class);
+        $this->assertRelated(new Folder, 'shares', MediaShare::class);
+        $this->assertRelated(new Folder, 'collaborators', CollaboratorGrant::class);
+        $this->assertRelated(new Folder, 'activities', Activity::class);
+        $this->assertRelated(new Folder, 'stars', ResourceStar::class);
+        $this->assertRelated(new Folder, 'comments', Comment::class);
     }
 
     /** @param class-string $expected */

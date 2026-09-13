@@ -3,15 +3,15 @@
 namespace Tetranyble\Storage\Tests\Feature;
 
 use Illuminate\Support\Facades\Storage;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\Bulk\BulkMediaService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Application\StorageRetentionService;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\Bulk\BulkMediaService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Application\StorageRetentionService;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
@@ -162,6 +162,7 @@ class RetentionAndBulkOperationsTest extends PackageTestCase
             'access_scope' => AccessScope::WORKSPACE,
         ]);
         Storage::disk('local')->put($path, str_repeat('x', min($size, 1000)));
+
         return $media;
     }
 }

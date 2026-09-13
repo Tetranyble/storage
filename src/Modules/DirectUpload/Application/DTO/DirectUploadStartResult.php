@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Modules\DirectUpload\Application\DTO;
 
-use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 
 readonly class DirectUploadStartResult
 {

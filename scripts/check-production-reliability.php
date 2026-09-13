@@ -13,6 +13,7 @@ function requireMarkers(string $root, string $relative, array $needles): void
     $source = is_file($path) ? (string) file_get_contents($path) : '';
     if ($source === '') {
         $errors[] = "Missing reliability contract file: {$relative}";
+
         return;
     }
 

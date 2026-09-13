@@ -2,20 +2,22 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Google\Client;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\GoogleDriveAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
+use Google\Service\Exception;
 use Mockery;
 use Mockery\MockInterface;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\GoogleDriveAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class GoogleDriveAdapterTest extends PackageTestCase
 {
     private MockInterface $driveService;
+
     private MockInterface $filesResource;
+
     private GoogleDriveAdapter $adapter;
 
     protected function setUp(): void
@@ -24,7 +26,7 @@ class GoogleDriveAdapterTest extends PackageTestCase
 
         // Mock the Drive service and its files resource
         $this->filesResource = Mockery::mock(Drive\Resource\Files::class);
-        $this->driveService  = Mockery::mock(Drive::class);
+        $this->driveService = Mockery::mock(Drive::class);
         $this->driveService->files = $this->filesResource;
 
         // Inject via reflection to avoid needing real Google OAuth
@@ -37,7 +39,7 @@ class GoogleDriveAdapterTest extends PackageTestCase
         $file1 = $this->makeFile('file-1', 'document.pdf', 'application/pdf', '1024');
         $file2 = $this->makeFile('folder-1', 'Photos', 'application/vnd.google-apps.folder', null);
 
-        $fileList = new FileList();
+        $fileList = new FileList;
         $fileList->setFiles([$file1, $file2]);
 
         $this->filesResource
@@ -58,7 +60,7 @@ class GoogleDriveAdapterTest extends PackageTestCase
 
     public function test_list_folder_returns_empty_when_no_files(): void
     {
-        $fileList = new FileList();
+        $fileList = new FileList;
         $fileList->setFiles([]);
 
         $this->filesResource
@@ -120,7 +122,7 @@ class GoogleDriveAdapterTest extends PackageTestCase
 
     public function test_delete_file_swallows_404(): void
     {
-        $exception = new \Google\Service\Exception('Not found', 404);
+        $exception = new Exception('Not found', 404);
 
         $this->filesResource
             ->shouldReceive('delete')
@@ -158,9 +160,9 @@ class GoogleDriveAdapterTest extends PackageTestCase
     private function makeAdapter(): GoogleDriveAdapter
     {
         return new GoogleDriveAdapter(
-            accessToken:  'fake-access-token',
+            accessToken: 'fake-access-token',
             refreshToken: 'fake-refresh-token',
-            clientId:     null,
+            clientId: null,
             clientSecret: null,
         );
     }
@@ -175,7 +177,7 @@ class GoogleDriveAdapterTest extends PackageTestCase
 
     private function makeFile(string $id, string $name, string $mimeType, ?string $size): DriveFile
     {
-        $file = new DriveFile();
+        $file = new DriveFile;
         $file->setId($id);
         $file->setName($name);
         $file->setMimeType($mimeType);

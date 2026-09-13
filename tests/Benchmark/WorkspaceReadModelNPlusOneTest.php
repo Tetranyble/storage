@@ -16,7 +16,7 @@ final class WorkspaceReadModelNPlusOneTest extends PackageTestCase
             $this->markTestSkipped('Set STORAGE_RUN_QUERY_BENCHMARKS=1 to run read-model N+1 checks.');
         }
 
-        $fixture = (new LargeWorkspaceFixture())->seed();
+        $fixture = (new LargeWorkspaceFixture)->seed();
         $workspace = $fixture['workspace'];
         $viewer = $fixture['viewer'];
         $queries = $this->app->make(WorkspaceFileQueryService::class);

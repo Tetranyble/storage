@@ -2,17 +2,18 @@
 
 namespace Tetranyble\Storage\Tests\Feature\Application;
 
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class WorkspaceVisibilityQueryTest extends PackageTestCase
@@ -106,7 +107,7 @@ class WorkspaceVisibilityQueryTest extends PackageTestCase
             'access_scope' => AccessScope::WORKSPACE,
         ]);
 
-        $this->expectException(\Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException::class);
+        $this->expectException(AccessDeniedException::class);
         $this->app->make(WorkspaceFileQueryService::class)
             ->indexPayload($workspace, 'restricted', '', $viewer);
     }

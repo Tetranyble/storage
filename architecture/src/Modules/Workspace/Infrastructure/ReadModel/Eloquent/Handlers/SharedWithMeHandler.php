@@ -28,8 +28,8 @@ final class SharedWithMeHandler
         $workspace = $this->resources->model($query->workspace, 'workspace');
         $actor = $this->resources->model($query->actor, 'actor');
         $this->visibility->forget($workspace, $actor);
-        $folderMorph = (new Folder())->getMorphClass();
-        $mediaMorph = (new Media())->getMorphClass();
+        $folderMorph = (new Folder)->getMorphClass();
+        $mediaMorph = (new Media)->getMorphClass();
 
         $folders = Folder::query()
             ->where('folders.workspace_id', $workspace->getKey())

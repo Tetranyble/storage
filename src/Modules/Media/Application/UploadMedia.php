@@ -2,19 +2,19 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Upload\Application\Contracts\UploadLimits;
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
 use InvalidArgumentException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaLibrary;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Upload\Application\Contracts\UploadLimits;
 
 class UploadMedia
 {
@@ -58,7 +58,6 @@ class UploadMedia
             ? $this->resources->folderById($workspace, $folderId)
             : $this->library->createWorkspaceRoot($workspace);
 
-        
         $this->access->authorizeEdit($workspace, $folder, $actor);
 
         $uploaded = [];

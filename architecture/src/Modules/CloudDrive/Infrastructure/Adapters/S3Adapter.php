@@ -3,15 +3,16 @@
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
 {
-    private \Illuminate\Contracts\Filesystem\Filesystem $disk;
+    private Filesystem $disk;
 
     public function __construct(
         private string $bucket,
@@ -29,41 +30,41 @@ class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
         $prefix = ($folderId === 'root') ? '' : rtrim($folderId, '/').'/';
 
         $directories = $this->disk->directories($prefix === '' ? null : $prefix);
-        $files       = $this->disk->files($prefix === '' ? null : $prefix);
+        $files = $this->disk->files($prefix === '' ? null : $prefix);
 
         $results = [];
 
         foreach ($directories as $dir) {
             $name = basename($dir);
             $results[] = new CloudFile(
-                id:           $dir,
-                name:         $name,
-                isFolder:     true,
-                size:         null,
-                mimeType:     null,
-                webViewLink:  null,
+                id: $dir,
+                name: $name,
+                isFolder: true,
+                size: null,
+                mimeType: null,
+                webViewLink: null,
                 thumbnailUrl: null,
-                modifiedAt:   null,
-                parentId:     $prefix === '' ? 'root' : $prefix,
+                modifiedAt: null,
+                parentId: $prefix === '' ? 'root' : $prefix,
             );
         }
 
         foreach ($files as $file) {
-            $name       = basename($file);
-            $size       = $this->disk->size($file);
-            $lastMod    = $this->disk->lastModified($file);
-            $mimeType   = $this->disk->mimeType($file) ?: null;
+            $name = basename($file);
+            $size = $this->disk->size($file);
+            $lastMod = $this->disk->lastModified($file);
+            $mimeType = $this->disk->mimeType($file) ?: null;
 
             $results[] = new CloudFile(
-                id:           $file,
-                name:         $name,
-                isFolder:     false,
-                size:         $size ?: null,
-                mimeType:     $mimeType,
-                webViewLink:  $this->disk->url($file),
+                id: $file,
+                name: $name,
+                isFolder: false,
+                size: $size ?: null,
+                mimeType: $mimeType,
+                webViewLink: $this->disk->url($file),
                 thumbnailUrl: null,
-                modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
-                parentId:     $prefix === '' ? 'root' : $prefix,
+                modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+                parentId: $prefix === '' ? 'root' : $prefix,
             );
         }
 
@@ -84,20 +85,20 @@ class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
     public function putFile(string $folderId, string $name, string $binary, string $mimeType = 'application/octet-stream'): CloudFile
     {
         $prefix = ($folderId === 'root') ? '' : rtrim($folderId, '/').'/';
-        $path   = $prefix.$name;
+        $path = $prefix.$name;
 
         $this->disk->put($path, $binary, ['ContentType' => $mimeType]);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     false,
-            size:         strlen($binary),
-            mimeType:     $mimeType,
-            webViewLink:  $this->disk->url($path),
+            id: $path,
+            name: $name,
+            isFolder: false,
+            size: strlen($binary),
+            mimeType: $mimeType,
+            webViewLink: $this->disk->url($path),
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $folderId,
+            modifiedAt: Carbon::now(),
+            parentId: $folderId,
         );
     }
 
@@ -113,51 +114,51 @@ class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
     public function createFolder(string $parentId, string $name): CloudFile
     {
         $prefix = ($parentId === 'root') ? '' : rtrim($parentId, '/').'/';
-        $path   = $prefix.$name;
+        $path = $prefix.$name;
 
         // S3 folders are virtual — put a .keep object
         $this->disk->put($path.'/.keep', '');
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     true,
-            size:         null,
-            mimeType:     null,
-            webViewLink:  null,
+            id: $path,
+            name: $name,
+            isFolder: true,
+            size: null,
+            mimeType: null,
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $parentId,
+            modifiedAt: Carbon::now(),
+            parentId: $parentId,
         );
     }
 
     public function getMetadata(string $fileId): CloudFile
     {
-        $name     = basename($fileId);
+        $name = basename($fileId);
         $isFolder = $this->disk->directoryExists($fileId);
 
         if ($isFolder) {
             return new CloudFile(
-                id:       $fileId,
-                name:     $name,
+                id: $fileId,
+                name: $name,
                 isFolder: true,
-                size:     null, mimeType: null, webViewLink: null, thumbnailUrl: null, modifiedAt: null,
+                size: null, mimeType: null, webViewLink: null, thumbnailUrl: null, modifiedAt: null,
             );
         }
 
-        $size    = $this->disk->size($fileId);
+        $size = $this->disk->size($fileId);
         $lastMod = $this->disk->lastModified($fileId);
-        $mime    = $this->disk->mimeType($fileId) ?: null;
+        $mime = $this->disk->mimeType($fileId) ?: null;
 
         return new CloudFile(
-            id:           $fileId,
-            name:         $name,
-            isFolder:     false,
-            size:         $size ?: null,
-            mimeType:     $mime,
-            webViewLink:  $this->disk->url($fileId),
+            id: $fileId,
+            name: $name,
+            isFolder: false,
+            size: $size ?: null,
+            mimeType: $mime,
+            webViewLink: $this->disk->url($fileId),
             thumbnailUrl: null,
-            modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+            modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
         );
     }
 
@@ -197,7 +198,7 @@ class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
     {
         $config = [
             'driver' => 's3',
-            'key'    => $this->key,
+            'key' => $this->key,
             'secret' => $this->secret,
             'region' => $this->region,
             'bucket' => $this->bucket,
@@ -208,7 +209,7 @@ class S3Adapter implements CloudAdapter, SupportsSameDriveOperations
         }
 
         if ($this->endpoint !== '') {
-            $config['endpoint']             = $this->endpoint;
+            $config['endpoint'] = $this->endpoint;
             $config['use_path_style_endpoint'] = true;
         }
 

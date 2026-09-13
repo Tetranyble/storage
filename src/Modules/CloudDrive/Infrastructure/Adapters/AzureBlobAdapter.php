@@ -32,6 +32,6 @@ final class AzureBlobAdapter extends AbstractFlysystemAdapter
             "EndpointSuffix={$endpointSuffix}",
         ]);
 
-        return new static($connectionString, $container);
+        return new self($connectionString, $container);
     }
 }

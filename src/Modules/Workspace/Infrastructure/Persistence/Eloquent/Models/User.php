@@ -3,11 +3,11 @@
 namespace Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
 use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
 use Tetranyble\Storage\Support\StorageConfig;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable implements StorageUser
 {

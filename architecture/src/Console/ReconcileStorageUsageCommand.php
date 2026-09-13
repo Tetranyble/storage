@@ -35,7 +35,7 @@ class ReconcileStorageUsageCommand extends Command
 
         $count = 0;
         $workspaceModel::query()
-            ->orderBy((new $workspaceModel())->getKeyName())
+            ->orderBy((new $workspaceModel)->getKeyName())
             ->chunkById(100, function ($workspaces) use ($storage, &$count): void {
                 foreach ($workspaces as $workspace) {
                     if (! $workspace instanceof Model) {

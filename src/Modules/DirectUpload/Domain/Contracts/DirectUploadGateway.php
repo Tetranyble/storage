@@ -44,7 +44,7 @@ interface DirectUploadGateway
     ): array;
 
     /**
-     * @param list<array{part_number:int,etag:string,checksum_sha256?:string|null}> $parts
+     * @param  list<array{part_number:int,etag:string,checksum_sha256?:string|null}>  $parts
      */
     public function completeMultipart(
         Disk $disk,

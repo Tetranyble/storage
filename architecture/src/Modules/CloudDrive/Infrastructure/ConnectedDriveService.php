@@ -2,35 +2,35 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure;
 
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\CloudProviderRegistry;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\DefaultCloudProviderRegistryFactory;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\TransferResult;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
-use Tetranyble\Storage\Events\DriveConnected;
-use Tetranyble\Storage\Events\DriveDisconnected;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tetranyble\Storage\Events\DriveConnected;
+use Tetranyble\Storage\Events\DriveDisconnected;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\StorageTransferAuthorizer;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\TransferResult;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\CloudProviderRegistry;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers\DefaultCloudProviderRegistryFactory;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\QuarantineStoragePolicy;
 
 class ConnectedDriveService
@@ -38,9 +38,9 @@ class ConnectedDriveService
     private ?CloudProviderRegistry $resolvedProviders = null;
 
     public function __construct(
-        private readonly OAuthService       $oauth,
+        private readonly OAuthService $oauth,
         private readonly FileSystemContract $files,
-        private readonly StorageService     $storage,
+        private readonly StorageService $storage,
         private readonly ?StorageTransferAuthorizer $transferAuthorization = null,
         private readonly ?CloudProviderDependencyGuard $dependencies = null,
         private readonly ?StorageLifecycleService $lifecycle = null,
@@ -63,8 +63,8 @@ class ConnectedDriveService
     public function connectOAuth(
         Model $workspace,
         CloudProvider $provider,
-        array         $tokenData,
-        string        $name,
+        array $tokenData,
+        string $name,
     ): ConnectedDrive {
         $this->providerRegistry()->oauthStrategy($provider);
         $this->providerRegistry()->assertAvailable($provider);
@@ -73,17 +73,17 @@ class ConnectedDriveService
             $isFirst = $this->defaults()->claimFirstSlot($workspace);
 
             return ConnectedDrive::create([
-                'uuid'             => (string) Str::uuid(),
-                'workspace_id'        => $workspace->getKey(),
-                'provider'         => $provider,
-                'name'             => $name,
-                'access_token'     => $tokenData['access_token'],
-                'refresh_token'    => $tokenData['refresh_token'] ?? null,
+                'uuid' => (string) Str::uuid(),
+                'workspace_id' => $workspace->getKey(),
+                'provider' => $provider,
+                'name' => $name,
+                'access_token' => $tokenData['access_token'],
+                'refresh_token' => $tokenData['refresh_token'] ?? null,
                 'token_expires_at' => $tokenData['expires_at'] ?? null,
-                'credentials'      => [],
-                'status'           => ConnectedDriveStatus::CONNECTED,
-                'is_default'       => $isFirst,
-                'connected_at'     => now(),
+                'credentials' => [],
+                'status' => ConnectedDriveStatus::CONNECTED,
+                'is_default' => $isFirst,
+                'connected_at' => now(),
             ]);
         });
 
@@ -135,7 +135,7 @@ class ConnectedDriveService
      * Connect any registered non-OAuth provider. Provider-specific validation and
      * connection probing belong to the registered provider strategy.
      *
-     * @param array<string, mixed> $credentials
+     * @param  array<string, mixed>  $credentials
      */
     public function connectCredentials(
         Model $workspace,
@@ -181,7 +181,7 @@ class ConnectedDriveService
 
         DB::transaction(function () use ($drive): void {
             $drive->forceFill([
-                'status'     => ConnectedDriveStatus::DISCONNECTED,
+                'status' => ConnectedDriveStatus::DISCONNECTED,
                 'is_default' => false,
                 'default_slot' => null,
             ])->save();
@@ -264,18 +264,18 @@ class ConnectedDriveService
      */
     public function browseFolder(
         Model $workspace,
-        ?ConnectedDrive $drive    = null,
-        string          $folderId = 'root',
+        ?ConnectedDrive $drive = null,
+        string $folderId = 'root',
     ): array {
-        $drive   = $this->resolveDrive($workspace, $drive);
+        $drive = $this->resolveDrive($workspace, $drive);
         $adapter = $this->adapterFor($drive);
-        $items   = $adapter->listFolder($folderId);
+        $items = $adapter->listFolder($folderId);
 
         return [
-            'drive'  => $this->driveDto($drive),
+            'drive' => $this->driveDto($drive),
             'folder' => $folderId,
-            'items'  => array_map(fn (CloudFile $f) => $f->toArray(), $items),
-            'count'  => count($items),
+            'items' => array_map(fn (CloudFile $f) => $f->toArray(), $items),
+            'count' => count($items),
         ];
     }
 
@@ -293,11 +293,11 @@ class ConnectedDriveService
     public function copyFile(
         Model $workspace,
         ConnectedDrive $from,
-        string         $fileId,
+        string $fileId,
         ConnectedDrive $to,
-        string         $targetFolderId = 'root',
-        ?string        $newName        = null,
-        ?Model         $actor          = null,
+        string $targetFolderId = 'root',
+        ?string $newName = null,
+        ?Model $actor = null,
     ): CloudFile {
         $this->assertWorkspaceDrive($workspace, $from);
         $this->assertWorkspaceDrive($workspace, $to);
@@ -311,8 +311,8 @@ class ConnectedDriveService
             return $fromAdapter->copyFileSameDrive($fileId, $targetFolderId, $name);
         }
 
-        $meta   = $fromAdapter->getMetadata($fileId);
-        $name   = $newName ?? $meta->name;
+        $meta = $fromAdapter->getMetadata($fileId);
+        $name = $newName ?? $meta->name;
         $binary = $fromAdapter->getFileBinary($fileId);
 
         return $this->adapterFor($to)->putFile($targetFolderId, $name, $binary, $meta->mimeType ?? 'application/octet-stream');
@@ -327,11 +327,11 @@ class ConnectedDriveService
     public function moveFile(
         Model $workspace,
         ConnectedDrive $from,
-        string         $fileId,
+        string $fileId,
         ConnectedDrive $to,
-        string         $targetFolderId = 'root',
-        ?string        $newName        = null,
-        ?Model         $actor          = null,
+        string $targetFolderId = 'root',
+        ?string $newName = null,
+        ?Model $actor = null,
     ): CloudFile {
         $this->assertWorkspaceDrive($workspace, $from);
         $this->assertWorkspaceDrive($workspace, $to);
@@ -358,18 +358,18 @@ class ConnectedDriveService
     public function copyFolder(
         Model $workspace,
         ConnectedDrive $from,
-        string         $folderId,
+        string $folderId,
         ConnectedDrive $to,
-        string         $targetParentId = 'root',
-        ?string        $newName        = null,
-        ?Model         $actor          = null,
+        string $targetParentId = 'root',
+        ?string $newName = null,
+        ?Model $actor = null,
     ): TransferResult {
         $this->assertWorkspaceDrive($workspace, $from);
         $this->assertWorkspaceDrive($workspace, $to);
         $this->transferAuthorization?->authorizeCopy($workspace, $from, $to, $actor);
 
         $fromAdapter = $this->adapterFor($from);
-        $toAdapter   = $this->adapterFor($to);
+        $toAdapter = $this->adapterFor($to);
 
         $sourceMeta = $fromAdapter->getMetadata($folderId);
         $rootFolder = $toAdapter->createFolder($targetParentId, $newName ?? $sourceMeta->name);
@@ -388,11 +388,11 @@ class ConnectedDriveService
     public function moveFolder(
         Model $workspace,
         ConnectedDrive $from,
-        string         $folderId,
+        string $folderId,
         ConnectedDrive $to,
-        string         $targetParentId = 'root',
-        ?string        $newName        = null,
-        ?Model         $actor          = null,
+        string $targetParentId = 'root',
+        ?string $newName = null,
+        ?Model $actor = null,
     ): TransferResult {
         $this->assertWorkspaceDrive($workspace, $from);
         $this->assertWorkspaceDrive($workspace, $to);
@@ -413,15 +413,15 @@ class ConnectedDriveService
 
     public function importFile(
         Model $workspace,
-        ConnectedDrive  $drive,
-        string          $remoteFileId,
-        Folder          $targetFolder,
+        ConnectedDrive $drive,
+        string $remoteFileId,
+        Folder $targetFolder,
         Model $actor,
     ): Media {
         $this->assertWorkspaceDrive($workspace, $drive);
         $this->assertWorkspaceFolder($workspace, $targetFolder);
 
-        $adapter  = $this->adapterFor($drive);
+        $adapter = $this->adapterFor($drive);
         $metadata = $adapter->getMetadata($remoteFileId);
 
         if ($metadata->isFolder) {
@@ -438,7 +438,7 @@ class ConnectedDriveService
         }
 
         $binary = $adapter->getFileBinary($remoteFileId);
-        $size   = strlen($binary);
+        $size = strlen($binary);
         if ($size > $maxBytes) {
             throw new InvalidStorageOperationException(sprintf(
                 'Cloud-drive import exceeds the configured maximum size (%d bytes > %d bytes).',
@@ -500,16 +500,16 @@ class ConnectedDriveService
      */
     public function exportFile(
         Model $workspace,
-        Media           $media,
-        ?ConnectedDrive $drive          = null,
-        string          $remoteFolderId = 'root',
+        Media $media,
+        ?ConnectedDrive $drive = null,
+        string $remoteFolderId = 'root',
     ): CloudFile {
         $drive = $this->resolveDrive($workspace, $drive);
         $this->assertWorkspaceMedia($workspace, $media);
         $this->delivery?->assertDeliverable($media);
 
-        $adapter  = $this->adapterFor($drive);
-        $binary   = $this->files->get($media->path, $media->disk);
+        $adapter = $this->adapterFor($drive);
+        $binary = $this->files->get($media->path, $media->disk);
         $mimeType = $media->mime_type ?? 'application/octet-stream';
 
         return $adapter->putFile($remoteFolderId, $media->original_name ?? basename($media->path), $binary, $mimeType);
@@ -542,7 +542,7 @@ class ConnectedDriveService
 
     private function dependencyGuard(): CloudProviderDependencyGuard
     {
-        return $this->dependencies ?? new CloudProviderDependencyGuard();
+        return $this->dependencies ?? new CloudProviderDependencyGuard;
     }
 
     private function lifecycle(): StorageLifecycleService
@@ -555,18 +555,18 @@ class ConnectedDriveService
 
     private function defaults(): ConnectedDriveDefaultCoordinator
     {
-        return $this->defaultCoordinator ?? new ConnectedDriveDefaultCoordinator();
+        return $this->defaultCoordinator ?? new ConnectedDriveDefaultCoordinator;
     }
 
     private function driveDto(ConnectedDrive $drive): array
     {
         return [
-            'id'         => $drive->id,
-            'uuid'       => $drive->uuid,
-            'name'       => $drive->name,
-            'provider'   => $drive->provider->value,
-            'label'      => $drive->provider->label(),
-            'status'     => $drive->status->value,
+            'id' => $drive->id,
+            'uuid' => $drive->uuid,
+            'name' => $drive->name,
+            'provider' => $drive->provider->value,
+            'label' => $drive->provider->label(),
+            'status' => $drive->status->value,
             'is_default' => (bool) $drive->is_default,
         ];
     }
@@ -574,21 +574,21 @@ class ConnectedDriveService
     private function assertWorkspaceDrive(Model $workspace, ConnectedDrive $drive): void
     {
         if ((int) $drive->workspace_id !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 
     private function assertWorkspaceFolder(Model $workspace, Folder $folder): void
     {
         if ((int) ($folder->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 
     private function assertWorkspaceMedia(Model $workspace, Media $media): void
     {
         if ((int) ($media->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 
@@ -600,25 +600,25 @@ class ConnectedDriveService
     private function recursiveCopy(
         CloudAdapter $from,
         CloudAdapter $to,
-        string       $sourceFolderId,
-        string       $targetFolderId,
+        string $sourceFolderId,
+        string $targetFolderId,
     ): array {
-        $filesCopied    = 0;
+        $filesCopied = 0;
         $foldersCreated = 0;
-        $errors         = [];
+        $errors = [];
 
         $items = $from->listFolder($sourceFolderId);
 
         foreach ($items as $item) {
             if ($item->isFolder) {
                 try {
-                    $newFolder       = $to->createFolder($targetFolderId, $item->name);
+                    $newFolder = $to->createFolder($targetFolderId, $item->name);
                     $foldersCreated++;
 
                     [$fc, $dc, $errs] = $this->recursiveCopy($from, $to, $item->id, $newFolder->id);
-                    $filesCopied    += $fc;
+                    $filesCopied += $fc;
                     $foldersCreated += $dc;
-                    $errors          = array_merge($errors, $errs);
+                    $errors = array_merge($errors, $errs);
                 } catch (\Throwable $e) {
                     $errors[] = ['path' => $item->name, 'error' => $e->getMessage()];
                 }

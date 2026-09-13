@@ -2,10 +2,11 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\LocalAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\LocalAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class LocalAdapterTest extends PackageTestCase
 {
@@ -197,7 +198,7 @@ class LocalAdapterTest extends PackageTestCase
     // Helpers
     // ---------------------------------------------------------------
 
-    private function fakeDisk(): \Illuminate\Contracts\Filesystem\Filesystem
+    private function fakeDisk(): Filesystem
     {
         return Storage::disk('local-test');
     }

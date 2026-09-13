@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\DirectUpload\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use InvalidArgumentException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\DirectUpload\Application\Contracts\DirectUploadManager;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadRequest;
 use Tetranyble\Storage\Modules\DirectUpload\Application\DTO\DirectUploadStartResult;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 
 final class StartDirectUpload
 {

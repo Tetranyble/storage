@@ -2,6 +2,11 @@
 
 namespace Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
@@ -10,15 +15,11 @@ use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\ResourceStar;
 use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
 use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\ResolvesConfiguredStorageModels;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $access_scope
  * @property mixed $archived_at
  * @property mixed $created_at

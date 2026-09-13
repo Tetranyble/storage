@@ -3,6 +3,12 @@
 namespace Tetranyble\Storage;
 
 use Illuminate\Support\ServiceProvider;
+use Tetranyble\Storage\Console\CleanupDirectUploadsCommand;
+use Tetranyble\Storage\Console\CleanupStorageOrphansCommand;
+use Tetranyble\Storage\Console\ProcessPendingMediaCommand;
+use Tetranyble\Storage\Console\ReconcileStorageUsageCommand;
+use Tetranyble\Storage\Console\StorageHealthCommand;
+use Tetranyble\Storage\Console\StorageRetentionCommand;
 use Tetranyble\Storage\Infrastructure\Laravel\StorageBindings;
 use Tetranyble\Storage\Infrastructure\Laravel\StorageConfigurationValidator;
 use Tetranyble\Storage\Infrastructure\Laravel\StorageRateLimiters;
@@ -42,12 +48,12 @@ final class StorageServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Tetranyble\Storage\Console\CleanupStorageOrphansCommand::class,
-                \Tetranyble\Storage\Console\ReconcileStorageUsageCommand::class,
-                \Tetranyble\Storage\Console\ProcessPendingMediaCommand::class,
-                \Tetranyble\Storage\Console\CleanupDirectUploadsCommand::class,
-                \Tetranyble\Storage\Console\StorageHealthCommand::class,
-                \Tetranyble\Storage\Console\StorageRetentionCommand::class,
+                CleanupStorageOrphansCommand::class,
+                ReconcileStorageUsageCommand::class,
+                ProcessPendingMediaCommand::class,
+                CleanupDirectUploadsCommand::class,
+                StorageHealthCommand::class,
+                StorageRetentionCommand::class,
             ]);
         }
     }

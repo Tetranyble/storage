@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\Upload\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Upload\Application\Contracts\UploadLimits;
 use InvalidArgumentException;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Tetranyble\Storage\Modules\Upload\Application\Contracts\UploadLimits;
 use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
 
 class StartResumableUpload

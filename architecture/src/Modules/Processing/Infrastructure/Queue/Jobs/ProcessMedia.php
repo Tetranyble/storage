@@ -11,11 +11,17 @@ class ProcessMedia implements ShouldQueue
     use InteractsWithQueue;
 
     public bool $afterCommit = true;
+
     public bool $failOnTimeout = true;
+
     public int $tries;
+
     public int $maxExceptions;
+
     public int $timeout;
+
     public ?string $connection;
+
     public ?string $queue;
 
     public function __construct(public readonly int $mediaId)

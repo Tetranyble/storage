@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models;
 
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
 
 class UploadSessionChunk extends Model
 {

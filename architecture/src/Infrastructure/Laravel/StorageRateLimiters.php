@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Infrastructure\Laravel;
 
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiter;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Http\Request;
 

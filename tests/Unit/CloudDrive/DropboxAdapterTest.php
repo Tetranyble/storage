@@ -2,23 +2,24 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\DropboxAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Mockery;
 use Mockery\MockInterface;
 use Spatie\Dropbox\Client;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\DropboxAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class DropboxAdapterTest extends PackageTestCase
 {
     private MockInterface $client;
+
     private DropboxAdapter $adapter;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->client  = Mockery::mock(Client::class);
+        $this->client = Mockery::mock(Client::class);
         $this->adapter = new DropboxAdapter('fake-token');
         $this->adapter->setClient($this->client);
     }
@@ -55,11 +56,11 @@ class DropboxAdapterTest extends PackageTestCase
         $this->client->allows('listFolder')
             ->with('/docs')
             ->andReturn([
-                'entries'  => [
+                'entries' => [
                     ['.tag' => 'file', 'name' => 'a.txt', 'path_display' => '/docs/a.txt', 'size' => 1],
                 ],
                 'has_more' => true,
-                'cursor'   => 'cursor-abc',
+                'cursor' => 'cursor-abc',
             ]);
 
         $this->client->allows('listFolderContinue')
@@ -201,9 +202,14 @@ class DropboxAdapterTest extends PackageTestCase
 
     private function makeStream(string $content): object
     {
-        return new class($content) {
+        return new class($content)
+        {
             public function __construct(private string $content) {}
-            public function __toString(): string { return $this->content; }
+
+            public function __toString(): string
+            {
+                return $this->content;
+            }
         };
     }
 

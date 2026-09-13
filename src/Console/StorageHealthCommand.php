@@ -3,8 +3,8 @@
 namespace Tetranyble\Storage\Console;
 
 use Illuminate\Console\Command;
-use Tetranyble\Storage\Modules\Health\Infrastructure\Application\StorageHealthService;
 use Tetranyble\Storage\Modules\Health\Domain\Enums\HealthStatus;
+use Tetranyble\Storage\Modules\Health\Infrastructure\Application\StorageHealthService;
 use Tetranyble\Storage\Support\StorageConfig;
 
 final class StorageHealthCommand extends Command
@@ -66,6 +66,7 @@ final class StorageHealthCommand extends Command
         }
         if (! ctype_digit((string) $raw) || (int) $raw < 1) {
             $this->error('The workspace option must be a positive integer primary key.');
+
             return false;
         }
 
@@ -73,6 +74,7 @@ final class StorageHealthCommand extends Command
         $workspaceClass = StorageConfig::workspaceModelClass();
         if (! $workspaceClass::query()->whereKey($id)->exists()) {
             $this->error('Workspace not found.');
+
             return false;
         }
 

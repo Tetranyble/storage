@@ -6,15 +6,21 @@ $root = dirname(__DIR__);
 $errors = [];
 $pass = [];
 
-$fail = static function (string $message) use (&$errors): void { $errors[] = $message; };
-$ok = static function (string $message) use (&$pass): void { $pass[] = $message; };
+$fail = static function (string $message) use (&$errors): void {
+    $errors[] = $message;
+};
+$ok = static function (string $message) use (&$pass): void {
+    $pass[] = $message;
+};
 $read = static function (string $relative) use ($root, $fail): string {
     $path = $root.'/'.$relative;
     $contents = is_file($path) ? file_get_contents($path) : false;
     if (! is_string($contents)) {
         $fail("Missing required release file [{$relative}].");
+
         return '';
     }
+
     return $contents;
 };
 
@@ -179,7 +185,6 @@ if ($archivePosition === false || $verifyArchivePosition === false || $tagPositi
     $fail('Release ordering drift: build and validate artifacts before pushing the immutable public tag.');
 }
 
-
 $env = $read('.env.example');
 foreach ([
     'STORAGE_ROUTES_ENABLED=false', 'STORAGE_ALLOW_UNAUTHENTICATED_PROTECTED_ROUTES=false',
@@ -238,7 +243,7 @@ if ($errors !== []) {
     exit(1);
 }
 
-fwrite(STDOUT, "Release-readiness gate passed (".count($pass)." checks).\n");
+fwrite(STDOUT, 'Release-readiness gate passed ('.count($pass)." checks).\n");
 foreach ($pass as $message) {
     fwrite(STDOUT, " - {$message}\n");
 }

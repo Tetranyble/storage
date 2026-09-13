@@ -2,7 +2,6 @@
 
 namespace Tetranyble\Storage\Modules\Activity\Application\Contracts;
 
-
 interface ActivityLogger
 {
     public function log(

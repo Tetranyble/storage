@@ -2,6 +2,7 @@
 
 namespace Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Providers;
 
+use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
@@ -17,7 +18,7 @@ final class GcsProvider implements CloudProviderStrategy
 
     public function packageRequirements(): array
     {
-        return ['league/flysystem-google-cloud-storage' => \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter::class];
+        return ['league/flysystem-google-cloud-storage' => GoogleCloudStorageAdapter::class];
     }
 
     public function adapter(ConnectedDrive $drive): CloudAdapter

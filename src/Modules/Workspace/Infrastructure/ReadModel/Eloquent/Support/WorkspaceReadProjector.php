@@ -57,6 +57,7 @@ final class WorkspaceReadProjector
         if ($includeDeletedAt) {
             $dto['deleted_at'] = optional($media->deleted_at)?->toIso8601String();
         }
+
         return new FileView($dto);
     }
 
@@ -80,6 +81,7 @@ final class WorkspaceReadProjector
         if ($includeDeletedAt) {
             $dto['deleted_at'] = optional($folder->deleted_at)?->toIso8601String();
         }
+
         return new FolderView($dto);
     }
 
@@ -109,6 +111,7 @@ final class WorkspaceReadProjector
         if ($folder->is_root || $folder->path === 'root') {
             return '';
         }
+
         return trim((string) str($folder->path)->after('root/'), '/');
     }
 }

@@ -7,6 +7,7 @@ use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $attempts
  * @property mixed $disk
  * @property mixed $path

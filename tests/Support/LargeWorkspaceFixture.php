@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 
@@ -68,7 +68,11 @@ final class LargeWorkspaceFixture
 
         $rows = [];
         for ($i = 1; $i <= $mediaCount; $i++) {
-            $folderId = $folderIds[($i - 1) % count($folderIds)] ?? $root->id;
+            // Keep a full page in the browsed root while distributing the rest
+            // throughout the hierarchy for recursive visibility/search checks.
+            $folderId = $i <= 50
+                ? $root->id
+                : ($folderIds[($i - 51) % count($folderIds)] ?? $root->id);
             $rows[] = [
                 'uuid' => (string) Str::uuid(),
                 'workspace_id' => $workspace->id,
@@ -96,8 +100,8 @@ final class LargeWorkspaceFixture
 
         if ($grantCount > 0) {
             $grants = [];
-            $folderMorph = (new Folder())->getMorphClass();
-            $mediaMorph = (new Media())->getMorphClass();
+            $folderMorph = (new Folder)->getMorphClass();
+            $mediaMorph = (new Media)->getMorphClass();
             $folderGrantBudget = intdiv($grantCount, 2);
 
             $restrictedFolders = Folder::query()

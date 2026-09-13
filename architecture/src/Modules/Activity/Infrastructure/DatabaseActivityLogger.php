@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Modules\Activity\Infrastructure;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
 use Tetranyble\Storage\Support\StorageConfig;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 class DatabaseActivityLogger implements ActivityLogger
 {
@@ -81,7 +81,7 @@ class DatabaseActivityLogger implements ActivityLogger
         if (! $value instanceof Model) {
             throw new \InvalidArgumentException('Expected an Eloquent model resource.');
         }
+
         return $value;
     }
-
 }

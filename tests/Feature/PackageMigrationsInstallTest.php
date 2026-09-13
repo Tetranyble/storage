@@ -3,7 +3,6 @@
 namespace Tetranyble\Storage\Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase;
@@ -156,6 +155,7 @@ class PackageMigrationsInstallTest extends TestCase
     {
         $files = glob($directory.'/*_*.php') ?: [];
         sort($files);
+
         return array_values(array_filter($files, fn (string $path): bool => ! str_contains($path, '/activities/')));
     }
 }

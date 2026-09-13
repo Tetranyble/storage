@@ -5,16 +5,16 @@ namespace Tetranyble\Storage\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Tetranyble\Storage\Modules\Upload\Application\ResumableUploadSessionGuard;
-use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
-use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
 use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
 use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
-use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
+use Tetranyble\Storage\Modules\Upload\Application\ResumableUploadSessionGuard;
+use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
 
 class ChunkedMediaUploadController extends StorageController
 {

@@ -33,7 +33,6 @@ if (! str_contains($service, 'providerRegistry()->adapterFor($drive)')) {
     $failures[] = 'ConnectedDriveService does not delegate adapter resolution to CloudProviderRegistry.';
 }
 
-
 $oauthPath = $root.'/src/Modules/CloudDrive/Infrastructure/OAuthService.php';
 $oauth = (string) file_get_contents($oauthPath);
 foreach (['match($provider)', 'match($drive->provider)', 'CloudProvider::GOOGLE_DRIVE =>', 'CloudProvider::ONEDRIVE =>', 'CloudProvider::DROPBOX =>'] as $forbidden) {
@@ -61,6 +60,7 @@ foreach ($providers as $file) {
     $path = $providerDir.'/'.$file;
     if (! is_file($path)) {
         $failures[] = "Missing cloud provider strategy: {$file}.";
+
         continue;
     }
 
@@ -91,7 +91,7 @@ $factoryPath = $providerDir.'/DefaultCloudProviderRegistryFactory.php';
 $factory = is_file($factoryPath) ? (string) file_get_contents($factoryPath) : '';
 foreach ($providers as $file) {
     $class = basename($file, '.php');
-    if (! str_contains($factory, "new {$class}(") && ! str_contains($factory, "new {$class}()")) {
+    if (preg_match('/\\bnew\\s+'.preg_quote($class, '/').'(?:\\s*\\(|\\s*[,;\\]])/', $factory) !== 1) {
         $failures[] = "Default provider composition is missing {$class}.";
     }
 }

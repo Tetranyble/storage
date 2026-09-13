@@ -3,14 +3,14 @@
 namespace Tetranyble\Storage\Concerns;
 
 use Illuminate\Http\UploadedFile;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
-use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Support\StorageConfig;
 
 trait ManipulatesMedia
 {
@@ -244,7 +244,7 @@ trait ManipulatesMedia
             : $this->findMedia($media, $withTrashed);
 
         if (! $resolved instanceof Media) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         return $resolved;

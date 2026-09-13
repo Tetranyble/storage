@@ -14,6 +14,7 @@ final class ReadPagination
     public function bounded(int $perPage): int
     {
         $max = max(1, (int) config('tetranyble-storage.queries.max_per_page', 200));
+
         return min(max(1, $perPage), $max);
     }
 
@@ -30,6 +31,7 @@ final class ReadPagination
         if (! $cursor) {
             throw new InvalidStorageOperationException('The pagination cursor is invalid.');
         }
+
         return $cursor;
     }
 

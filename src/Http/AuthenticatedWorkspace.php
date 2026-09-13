@@ -38,7 +38,7 @@ class AuthenticatedWorkspace implements WorkspaceContext
             throw new AccessDeniedException('The current actor is not associated with a storage workspace.');
         }
 
-        throw new AuthenticationRequiredException();
+        throw new AuthenticationRequiredException;
     }
 
     public function owns(object $workspace, object $resource): bool
@@ -55,7 +55,7 @@ class AuthenticatedWorkspace implements WorkspaceContext
     public function authorizeOwnership(object $workspace, object $resource): void
     {
         if (! $this->owns($workspace, $resource)) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 }

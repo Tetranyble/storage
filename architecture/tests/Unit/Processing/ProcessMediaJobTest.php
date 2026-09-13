@@ -3,8 +3,8 @@
 namespace Tetranyble\Storage\Tests\Unit\Processing;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Queue\Jobs\ProcessMedia;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class ProcessMediaJobTest extends PackageTestCase
 {

@@ -7,7 +7,7 @@
  */
 
 $packageVendor = dirname(__DIR__).'/vendor/autoload.php';
-$hostVendor    = dirname(__DIR__, 4).'/vendor/autoload.php';
+$hostVendor = dirname(__DIR__, 4).'/vendor/autoload.php';
 
 if (file_exists($packageVendor)) {
     require $packageVendor;

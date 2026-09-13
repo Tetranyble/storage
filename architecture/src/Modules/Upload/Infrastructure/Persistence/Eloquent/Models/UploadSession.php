@@ -2,16 +2,17 @@
 
 namespace Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models;
 
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
-use Tetranyble\Storage\Support\StorageConfig;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
-use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\ResolvesConfiguredStorageModels;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\ResolvesConfiguredStorageModels;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
+use Tetranyble\Storage\Support\StorageConfig;
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $completed_at
  * @property mixed $conflict_meta
  * @property mixed $conflict_reason

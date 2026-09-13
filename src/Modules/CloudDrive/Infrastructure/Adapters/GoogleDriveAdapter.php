@@ -6,24 +6,27 @@ use Carbon\Carbon;
 use Google\Client;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
+use Google\Service\Exception;
+use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use RuntimeException;
 
 /**
  * Wraps google/apiclient (Drive v3) behind the CloudAdapter contract.
  */
 class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 {
-    private const FOLDER_MIME  = 'application/vnd.google-apps.folder';
-    private const FILE_FIELDS  = 'id,name,mimeType,size,webViewLink,thumbnailLink,modifiedTime,parents';
+    private const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
-    private Drive  $service;
+    private const FILE_FIELDS = 'id,name,mimeType,size,webViewLink,thumbnailLink,modifiedTime,parents';
+
+    private Drive $service;
+
     private Client $client;
 
     public function __construct(
-        private string  $accessToken,
+        private string $accessToken,
         private ?string $refreshToken,
         private ?string $clientId,
         private ?string $clientSecret,
@@ -35,8 +38,8 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     public function listFolder(string $folderId = 'root'): array
     {
         $results = $this->service->files->listFiles([
-            'q'        => "'{$folderId}' in parents and trashed = false",
-            'fields'   => 'files('.self::FILE_FIELDS.')',
+            'q' => "'{$folderId}' in parents and trashed = false",
+            'fields' => 'files('.self::FILE_FIELDS.')',
             'pageSize' => 1000,
         ]);
 
@@ -57,15 +60,15 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     public function putFile(string $folderId, string $name, string $binary, string $mimeType = 'application/octet-stream'): CloudFile
     {
         $metadata = new DriveFile([
-            'name'    => $name,
+            'name' => $name,
             'parents' => [$folderId],
         ]);
 
         $file = $this->service->files->create($metadata, [
-            'data'        => $binary,
-            'mimeType'    => $mimeType,
-            'uploadType'  => 'multipart',
-            'fields'      => self::FILE_FIELDS,
+            'data' => $binary,
+            'mimeType' => $mimeType,
+            'uploadType' => 'multipart',
+            'fields' => self::FILE_FIELDS,
         ]);
 
         return $this->toCloudFile($file);
@@ -75,7 +78,7 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     {
         try {
             $this->service->files->delete($fileId);
-        } catch (\Google\Service\Exception $e) {
+        } catch (Exception $e) {
             if ($e->getCode() !== 404) {
                 throw new RuntimeException("Google Drive delete failed: {$e->getMessage()}", 0, $e);
             }
@@ -85,9 +88,9 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     public function createFolder(string $parentId, string $name): CloudFile
     {
         $metadata = new DriveFile([
-            'name'     => $name,
+            'name' => $name,
             'mimeType' => self::FOLDER_MIME,
-            'parents'  => [$parentId],
+            'parents' => [$parentId],
         ]);
 
         $folder = $this->service->files->create($metadata, ['fields' => self::FILE_FIELDS]);
@@ -114,15 +117,15 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     public function moveFileSameDrive(string $fileId, string $targetFolderId, string $name): CloudFile
     {
         // Fetch current parents so we can remove them
-        $current       = $this->service->files->get($fileId, ['fields' => 'parents']);
+        $current = $this->service->files->get($fileId, ['fields' => 'parents']);
         $removeParents = implode(',', $current->getParents() ?? []);
 
         $metadata = new DriveFile(['name' => $name]);
 
         $moved = $this->service->files->update($fileId, $metadata, [
-            'addParents'    => $targetFolderId,
+            'addParents' => $targetFolderId,
             'removeParents' => $removeParents,
-            'fields'        => self::FILE_FIELDS,
+            'fields' => self::FILE_FIELDS,
         ]);
 
         return $this->toCloudFile($moved);
@@ -144,13 +147,13 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 
         return [
             'access_token' => $token['access_token'],
-            'expires_at'   => Carbon::now()->addSeconds((int) ($token['expires_in'] ?? 3600)),
+            'expires_at' => Carbon::now()->addSeconds((int) ($token['expires_in'] ?? 3600)),
         ];
     }
 
     private function buildClient(): Client
     {
-        $client = new Client();
+        $client = new Client;
 
         if ($this->clientId) {
             $client->setClientId($this->clientId);
@@ -168,17 +171,17 @@ class GoogleDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
     private function toCloudFile(DriveFile $file): CloudFile
     {
         return new CloudFile(
-            id:           $file->getId(),
-            name:         $file->getName(),
-            isFolder:     $file->getMimeType() === self::FOLDER_MIME,
-            size:         $file->getSize() !== null ? (int) $file->getSize() : null,
-            mimeType:     $file->getMimeType(),
-            webViewLink:  $file->getWebViewLink(),
+            id: $file->getId(),
+            name: $file->getName(),
+            isFolder: $file->getMimeType() === self::FOLDER_MIME,
+            size: $file->getSize() !== null ? (int) $file->getSize() : null,
+            mimeType: $file->getMimeType(),
+            webViewLink: $file->getWebViewLink(),
             thumbnailUrl: $file->getThumbnailLink(),
-            modifiedAt:   $file->getModifiedTime()
+            modifiedAt: $file->getModifiedTime()
                 ? Carbon::parse($file->getModifiedTime())
                 : null,
-            parentId:     $file->getParents()[0] ?? null,
+            parentId: $file->getParents()[0] ?? null,
         );
     }
 }

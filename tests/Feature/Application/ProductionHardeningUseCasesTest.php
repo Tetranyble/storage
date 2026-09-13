@@ -2,15 +2,15 @@
 
 namespace Tetranyble\Storage\Tests\Feature\Application;
 
-use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
-use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
-use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
+use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;

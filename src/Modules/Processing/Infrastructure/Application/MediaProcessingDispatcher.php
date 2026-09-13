@@ -4,13 +4,13 @@ namespace Tetranyble\Storage\Modules\Processing\Infrastructure\Application;
 
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
 use Tetranyble\Storage\Modules\Processing\Domain\Policy\ProcessingRetryPolicy;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Queue\Jobs\ProcessMedia;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Throwable;
 
 class MediaProcessingDispatcher
 {
@@ -28,6 +28,7 @@ class MediaProcessingDispatcher
 
         if ($this->isExternallyHosted($media)) {
             $this->markExternalReady($media);
+
             return;
         }
 
@@ -38,6 +39,7 @@ class MediaProcessingDispatcher
 
         if ((bool) config('tetranyble-storage.processing.inline', false)) {
             $this->processor->process((int) $reserved->getKey());
+
             return;
         }
 
@@ -180,6 +182,7 @@ class MediaProcessingDispatcher
         }
 
         $path = trim((string) $media->path);
+
         return $path !== '' && filter_var($path, FILTER_VALIDATE_URL) !== false;
     }
 

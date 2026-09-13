@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\Trust\Infrastructure;
 
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
 use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
 
 class ConfiguredMediaDeliveryPolicy implements MediaDeliveryPolicy
 {

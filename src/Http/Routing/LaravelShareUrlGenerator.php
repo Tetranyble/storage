@@ -2,7 +2,6 @@
 
 namespace Tetranyble\Storage\Http\Routing;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tetranyble\Storage\Modules\Sharing\Application\Contracts\ShareUrlGenerator;

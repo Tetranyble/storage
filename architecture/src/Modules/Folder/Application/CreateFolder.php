@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\Folder\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
-use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaLibrary;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
+use Tetranyble\Storage\Modules\Media\Application\Contracts\MediaLibrary;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\StorageEventPublisher;
 
 final class CreateFolder
 {
@@ -32,7 +32,6 @@ final class CreateFolder
             ? $this->resources->folderById($workspace, $parentId)
             : $this->library->createWorkspaceRoot($workspace);
 
-        
         if ($actor) {
             $this->access->authorizeEdit($workspace, $parent, $actor);
         }

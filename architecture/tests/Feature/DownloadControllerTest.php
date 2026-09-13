@@ -2,22 +2,24 @@
 
 namespace Tetranyble\Storage\Tests\Feature;
 
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class DownloadControllerTest extends PackageTestCase
 {
     private Workspace $workspace;
-    private User   $user;
+
+    private User $user;
 
     protected function defineEnvironment($app): void
     {
@@ -25,12 +27,12 @@ class DownloadControllerTest extends PackageTestCase
 
         // Point the web guard at the package User model so actingAs() works
         $app['config']->set('auth.guards.web', [
-            'driver'   => 'session',
+            'driver' => 'session',
             'provider' => 'package_users',
         ]);
         $app['config']->set('auth.providers.package_users', [
             'driver' => 'eloquent',
-            'model'  => User::class,
+            'model' => User::class,
         ]);
     }
 
@@ -41,11 +43,11 @@ class DownloadControllerTest extends PackageTestCase
         Storage::fake('local');
 
         $this->workspace = Workspace::create(['name' => 'Acme', 'uuid' => Str::uuid()]);
-        $this->user   = User::create([
-            'uuid'      => Str::uuid(),
+        $this->user = User::create([
+            'uuid' => Str::uuid(),
             'workspace_id' => $this->workspace->id,
-            'name'      => 'Alice',
-            'email'     => 'alice@example.com',
+            'name' => 'Alice',
+            'email' => 'alice@example.com',
         ]);
     }
 
@@ -84,14 +86,14 @@ class DownloadControllerTest extends PackageTestCase
 
         $otherWorkspace = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $media = Media::create([
-            'uuid'          => Str::uuid(),
-            'workspace_id'     => $otherWorkspace->id,
-            'disk'          => Disk::PRIVATE->value,
-            'path'          => 'files/other.txt',
+            'uuid' => Str::uuid(),
+            'workspace_id' => $otherWorkspace->id,
+            'disk' => Disk::PRIVATE->value,
+            'path' => 'files/other.txt',
             'original_name' => 'other.txt',
-            'mime_type'     => 'text/plain',
-            'access_scope'  => AccessScope::WORKSPACE->value,
-            'status'        => MediaStatus::READY->value,
+            'mime_type' => 'text/plain',
+            'access_scope' => AccessScope::WORKSPACE->value,
+            'status' => MediaStatus::READY->value,
         ]);
 
         $this->actingAs($this->user)
@@ -105,7 +107,7 @@ class DownloadControllerTest extends PackageTestCase
 
         $access = Mockery::mock(ResourceAccessControl::class);
         $access->shouldReceive('authorizeView')->once()->andThrow(
-            new \Symfony\Component\HttpKernel\Exception\HttpException(403, 'Forbidden')
+            new HttpException(403, 'Forbidden')
         );
         $access->shouldReceive('canView')->andReturn(false);
         $this->app->instance(ResourceAccessControl::class, $access);
@@ -132,7 +134,7 @@ class DownloadControllerTest extends PackageTestCase
         $this->actingAs($this->user)
             ->postJson(route('tetranyble-storage.media.zip'), [
                 'items' => [$a->uuid, $b->uuid],
-                'name'  => 'my-archive',
+                'name' => 'my-archive',
             ])
             ->assertOk()
             ->assertHeader('Content-Type', 'application/zip')
@@ -159,13 +161,13 @@ class DownloadControllerTest extends PackageTestCase
 
         $otherWorkspace = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $foreign = Media::create([
-            'uuid'         => Str::uuid(),
-            'workspace_id'    => $otherWorkspace->id,
-            'disk'         => Disk::PRIVATE->value,
-            'path'         => 'files/own.txt',
+            'uuid' => Str::uuid(),
+            'workspace_id' => $otherWorkspace->id,
+            'disk' => Disk::PRIVATE->value,
+            'path' => 'files/own.txt',
             'original_name' => 'foreign.txt',
             'access_scope' => AccessScope::WORKSPACE->value,
-            'status'       => MediaStatus::READY->value,
+            'status' => MediaStatus::READY->value,
         ]);
 
         // The foreign UUID is submitted but belongs to another workspace — query
@@ -194,19 +196,19 @@ class DownloadControllerTest extends PackageTestCase
     // ---------------------------------------------------------------
 
     private function mediaRecord(
-        string      $filename,
+        string $filename,
         AccessScope $scope,
-        string      $path = null,
+        ?string $path = null,
     ): Media {
         return Media::create([
-            'uuid'          => Str::uuid(),
-            'workspace_id'     => $this->workspace->id,
-            'disk'          => Disk::PRIVATE->value,
-            'path'          => $path ?? 'files/'.$filename,
+            'uuid' => Str::uuid(),
+            'workspace_id' => $this->workspace->id,
+            'disk' => Disk::PRIVATE->value,
+            'path' => $path ?? 'files/'.$filename,
             'original_name' => $filename,
-            'mime_type'     => 'text/plain',
-            'access_scope'  => $scope->value,
-            'status'        => MediaStatus::READY->value,
+            'mime_type' => 'text/plain',
+            'access_scope' => $scope->value,
+            'status' => MediaStatus::READY->value,
         ]);
     }
 

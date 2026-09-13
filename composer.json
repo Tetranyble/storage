@@ -142,6 +142,7 @@
     },
     "config": {
         "sort-packages": true,
+        "process-timeout": 900,
         "allow-plugins": {
             "php-http/discovery": false
         }

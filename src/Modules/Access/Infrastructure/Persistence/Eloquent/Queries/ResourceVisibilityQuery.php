@@ -46,7 +46,7 @@ final class ResourceVisibilityQuery
         }
 
         $snapshot = $this->snapshot($workspace, $actor);
-        $folderMorph = (new Folder())->getMorphClass();
+        $folderMorph = (new Folder)->getMorphClass();
 
         return $query->where(function (Builder $visible) use ($workspace, $actor, $snapshot, $folderMorph): void {
             $visible->where('folders.created_by', $actor->getKey())
@@ -82,7 +82,7 @@ final class ResourceVisibilityQuery
         }
 
         $snapshot = $this->snapshot($workspace, $actor);
-        $mediaMorph = (new Media())->getMorphClass();
+        $mediaMorph = (new Media)->getMorphClass();
 
         return $query->where(function (Builder $visible) use ($workspace, $actor, $snapshot, $mediaMorph): void {
             $visible->where('media.uploaded_by', $actor->getKey())
@@ -164,7 +164,7 @@ final class ResourceVisibilityQuery
             ->where('workspace_id', $workspace->getKey())
             ->get(['id', 'parent_id', 'created_by', 'access_scope']);
 
-        $folderMorph = (new Folder())->getMorphClass();
+        $folderMorph = (new Folder)->getMorphClass();
         $grantRoles = CollaboratorGrant::query()
             ->where('workspace_id', $workspace->getKey())
             ->where('user_id', $actor->getKey())

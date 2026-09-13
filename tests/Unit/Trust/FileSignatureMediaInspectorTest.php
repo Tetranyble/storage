@@ -9,8 +9,8 @@ use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
 use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\MimeType;
 use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\StoragePath;
-use Tetranyble\Storage\Modules\Trust\Domain\ValueObject\MediaScanId;
 use Tetranyble\Storage\Modules\Trust\Domain\DTO\MediaScanTarget;
+use Tetranyble\Storage\Modules\Trust\Domain\ValueObject\MediaScanId;
 use Tetranyble\Storage\Modules\Trust\Infrastructure\FileSignatureMediaInspector;
 
 class FileSignatureMediaInspectorTest extends TestCase

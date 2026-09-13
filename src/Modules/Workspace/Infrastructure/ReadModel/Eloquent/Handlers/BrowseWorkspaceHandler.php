@@ -47,6 +47,7 @@ final class BrowseWorkspaceHandler
         $folders = $folderQuery->get()->map(function (Folder $folder) use ($actor, $workspace): array {
             $dto = $this->projector->folder($folder);
             $dto['effective_role'] = $actor ? $this->visibility->effectiveFolderRole($workspace, $folder, $actor)?->value : null;
+
             return $dto;
         })->values();
 
@@ -79,7 +80,6 @@ final class BrowseWorkspaceHandler
                 'remaining_bytes' => $usage->remaining()->bytes, 'percent' => $usage->percentage(), 'near_limit' => $usage->isNearLimit()],
         ];
     }
-
 
     /** @return list<array{id:int,name:string,path:string}> */
     private function breadcrumbs(Model $workspace, Folder $current): array
@@ -134,6 +134,7 @@ final class BrowseWorkspaceHandler
     private function resolveFolder(Model $workspace, string $relativePath): ?Folder
     {
         $relativePath = trim($relativePath, '/');
+
         return Folder::query()->where('workspace_id', $workspace->getKey())
             ->where('path', $relativePath === '' ? 'root' : 'root/'.$relativePath)->first();
     }

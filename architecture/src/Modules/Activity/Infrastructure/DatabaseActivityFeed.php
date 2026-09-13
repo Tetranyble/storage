@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Modules\Activity\Infrastructure;
 
-use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
-use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
+use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 
 class DatabaseActivityFeed implements ActivityFeed
 {
@@ -40,7 +40,7 @@ class DatabaseActivityFeed implements ActivityFeed
             ->pluck('id');
 
         if ($versionIds->isEmpty()) {
-            return (new Activity())->newCollection();
+            return (new Activity)->newCollection();
         }
 
         return Activity::query()
@@ -64,7 +64,7 @@ class DatabaseActivityFeed implements ActivityFeed
         if (! $value instanceof Model) {
             throw new \InvalidArgumentException('Expected an Eloquent model resource.');
         }
+
         return $value;
     }
-
 }

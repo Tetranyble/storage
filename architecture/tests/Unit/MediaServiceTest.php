@@ -2,25 +2,25 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
+use Tetranyble\Storage\Modules\Remote\Domain\Exceptions\RemoteDownloadException;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
-use Tetranyble\Storage\Modules\Remote\Domain\Exceptions\RemoteDownloadException;
 use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
-use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\Models\DummyMediableModel;
 use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 
 class MediaServiceTest extends PackageTestCase
 {
@@ -137,7 +137,6 @@ class MediaServiceTest extends PackageTestCase
         Storage::disk('public')->assertMissing($media->path);
         $this->assertDatabaseMissing('media', ['id' => $media->id]);
     }
-
 
     public function test_delete_media_item_removes_original_and_all_first_class_derivatives(): void
     {

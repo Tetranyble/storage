@@ -2,10 +2,6 @@
 
 namespace Tetranyble\Storage\Modules\Storage\Infrastructure;
 
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Concerns\FileSystemTrait;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Support\StorageConfig;
 use Illuminate\Contracts\Filesystem\Filesystem as LaravelFilesystem;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\File;
@@ -13,6 +9,11 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Concerns\FileSystemTrait;
+use Tetranyble\Storage\Support\StorageConfig;
 
 class FileSystem implements FileSystemContract
 {
@@ -58,7 +59,7 @@ class FileSystem implements FileSystemContract
 
         $uploaded = $file instanceof UploadedFile
             ? $file
-            : ($file instanceof File ? $file : new File($file instanceof \Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile ? $file->localPath : $file));
+            : ($file instanceof File ? $file : new File($file instanceof IncomingFile ? $file->localPath : $file));
 
         return $this->adapter($disk)->putFileAs(
             $directory,

@@ -2,14 +2,14 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Mail\Attachment;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaMailAttachmentTest extends PackageTestCase
 {

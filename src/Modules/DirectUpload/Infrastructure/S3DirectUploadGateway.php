@@ -9,16 +9,14 @@ use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadObject;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadPart;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\{ETag, PartNumber};
-use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\{FileSize, MimeType, Sha256Checksum};
+use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\ETag;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\PartNumber;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\MimeType;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\Sha256Checksum;
 
-/**
- * S3-compatible direct-upload gateway.
- *
- * The AWS SDK remains optional. This class is only exercised when a configured
- * S3 disk is selected and Aws\\S3\\S3Client is available at runtime.
- */
+/** S3-compatible direct-upload gateway backed by the optional AWS SDK. */
 final class S3DirectUploadGateway implements DirectUploadGateway
 {
     /** @var array<string, S3Client> */

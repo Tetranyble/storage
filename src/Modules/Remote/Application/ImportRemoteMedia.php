@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Modules\Remote\Application;
 
-use Tetranyble\Storage\Modules\Remote\Application\Contracts\ResourceIdentity;
 use InvalidArgumentException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Remote\Application\Contracts\RemoteMediaImporter;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Remote\Application\Contracts\ResourceIdentity;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 
 class ImportRemoteMedia

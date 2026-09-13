@@ -3,9 +3,9 @@
 namespace Tetranyble\Storage\Tests\Benchmark;
 
 use Illuminate\Support\Facades\DB;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Queries\ResourceVisibilityQuery;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Tetranyble\Storage\Tests\Support\LargeWorkspaceFixture;
 use Tetranyble\Storage\Tests\Support\QueryPlanInspector;
@@ -18,7 +18,7 @@ class LargeWorkspaceQueryBenchmarkTest extends PackageTestCase
             $this->markTestSkipped('Set STORAGE_RUN_QUERY_BENCHMARKS=1 to run the large-workspace benchmark fixture.');
         }
 
-        $fixture = (new LargeWorkspaceFixture())->seed();
+        $fixture = (new LargeWorkspaceFixture)->seed();
         $workspace = $fixture['workspace'];
         $viewer = $fixture['viewer'];
 
@@ -56,7 +56,7 @@ class LargeWorkspaceQueryBenchmarkTest extends PackageTestCase
             ->orderByDesc('updated_at')
             ->orderByDesc('id');
         $visibility->media($representative, $workspace, $viewer);
-        $plan = (new QueryPlanInspector())->explain($representative);
+        $plan = (new QueryPlanInspector)->explain($representative);
 
         fwrite(STDERR, sprintf(
             "\n[storage benchmark] driver=%s queries=%d elapsed_ms=%.2f memory_delta_mb=%.2f plan=%s\n",

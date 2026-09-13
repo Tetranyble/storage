@@ -5,10 +5,11 @@ namespace Tetranyble\Storage\Concerns;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 
 trait HasMedia
 {
@@ -62,9 +63,13 @@ trait HasMedia
             $query->withTrashed();
         }
 
-        return $query
-            ->where(fn ($builder) => $builder->whereKey($key)->orWhere('uuid', $key))
-            ->first();
+        if (is_int($key) || (is_string($key) && ctype_digit($key))) {
+            return $query->whereKey($key)->first();
+        }
+
+        return is_string($key) && Str::isUuid($key)
+            ? $query->where('uuid', $key)->first()
+            : null;
     }
 
     public function default(string $type = 'image'): Model

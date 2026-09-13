@@ -1,18 +1,33 @@
 <?php
 
+use Tetranyble\Storage\Http\AuthenticatedWorkspace;
+use Tetranyble\Storage\Http\Controllers\BulkMediaController;
+use Tetranyble\Storage\Http\Controllers\ChunkedMediaUploadController;
+use Tetranyble\Storage\Http\Controllers\DirectUploadController;
+use Tetranyble\Storage\Http\Controllers\DownloadController;
+use Tetranyble\Storage\Http\Controllers\MediaController;
+use Tetranyble\Storage\Http\Controllers\MediaLibraryController;
+use Tetranyble\Storage\Http\Controllers\MediaShareController;
+use Tetranyble\Storage\Http\Controllers\MediaTransferController;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Transfer\Application\AccessControlTransferAuthorizer;
+use Tetranyble\Storage\Modules\Trust\Infrastructure\ClamAvMediaScanner;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+
 return [
     // A single package-wide default is used whenever no storage driver is supplied.
     'default_disk' => env('STORAGE_DISK'),
 
     'transfer' => [
-        'authorizer' => \Tetranyble\Storage\Modules\Transfer\Application\AccessControlTransferAuthorizer::class,
+        'authorizer' => AccessControlTransferAuthorizer::class,
     ],
 
     'models' => [
         // Host application integration points. Storage-owned entity models are
         // package-owned and intentionally not replaceable.
-        'workspace' => \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace::class,
-        'user' => \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::class,
+        'workspace' => Workspace::class,
+        'user' => User::class,
     ],
     'database' => [
         'tables' => [
@@ -43,7 +58,7 @@ return [
         ],
     ],
     'workspace' => [
-        'resolver' => \Tetranyble\Storage\Http\AuthenticatedWorkspace::class,
+        'resolver' => AuthenticatedWorkspace::class,
         'guard' => null,
         'workspace_relation' => 'workspace',
         'workspace_foreign_key' => 'workspace_id',
@@ -52,15 +67,15 @@ return [
     'defaults' => [
         'profile' => [
             'path' => null,
-            'disk' => \Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk::PUBLIC->value,
+            'disk' => Disk::PUBLIC->value,
         ],
         'image' => [
             'path' => null,
-            'disk' => \Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk::PUBLIC->value,
+            'disk' => Disk::PUBLIC->value,
         ],
         'video' => [
             'path' => null,
-            'disk' => \Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk::PUBLIC->value,
+            'disk' => Disk::PUBLIC->value,
         ],
     ],
     'placement' => [
@@ -177,7 +192,7 @@ return [
         ],
         'virus_scanning' => [
             'enabled' => env('STORAGE_VIRUS_SCANNING_ENABLED', false),
-            'scanner' => \Tetranyble\Storage\Modules\Trust\Infrastructure\ClamAvMediaScanner::class,
+            'scanner' => ClamAvMediaScanner::class,
             'clamav_binary' => env('STORAGE_CLAMAV_BINARY', 'clamscan'),
             'timeout_seconds' => (int) env('STORAGE_SCAN_TIMEOUT', 30),
             'max_scan_bytes' => (int) env('STORAGE_SCAN_MAX_SIZE', 50 * 1024 * 1024),
@@ -188,27 +203,27 @@ return [
         // Fail closed on public disks while scanning is enabled unless a host opts out.
         'require_private_storage' => env('STORAGE_QUARANTINE_REQUIRE_PRIVATE', true),
         'quarantine_disks' => [
-            \Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk::PRIVATE->value,
-            \Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk::S3_PRIVATE->value,
+            Disk::PRIVATE->value,
+            Disk::S3_PRIVATE->value,
         ],
         'allow_on_scan_failure' => env('STORAGE_ALLOW_ON_SCAN_FAILURE', false),
     ],
     'cloud_drives' => [
         'google_drive' => [
-            'client_id'     => env('GOOGLE_DRIVE_CLIENT_ID'),
+            'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
             'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
-            'redirect_uri'  => env('GOOGLE_DRIVE_REDIRECT_URI'),
+            'redirect_uri' => env('GOOGLE_DRIVE_REDIRECT_URI'),
         ],
         'onedrive' => [
-            'client_id'     => env('ONEDRIVE_CLIENT_ID'),
+            'client_id' => env('ONEDRIVE_CLIENT_ID'),
             'client_secret' => env('ONEDRIVE_CLIENT_SECRET'),
-            'redirect_uri'  => env('ONEDRIVE_REDIRECT_URI'),
-            'tenant_id'     => env('ONEDRIVE_TENANT_ID', 'common'),
+            'redirect_uri' => env('ONEDRIVE_REDIRECT_URI'),
+            'tenant_id' => env('ONEDRIVE_TENANT_ID', 'common'),
         ],
         'dropbox' => [
-            'client_id'     => env('DROPBOX_CLIENT_ID'),
+            'client_id' => env('DROPBOX_CLIENT_ID'),
             'client_secret' => env('DROPBOX_CLIENT_SECRET'),
-            'redirect_uri'  => env('DROPBOX_REDIRECT_URI'),
+            'redirect_uri' => env('DROPBOX_REDIRECT_URI'),
         ],
     ],
 
@@ -227,14 +242,14 @@ return [
             'authenticated_per_minute' => (int) env('STORAGE_AUTHENTICATED_RATE_LIMIT', 240),
         ],
         'controllers' => [
-            'download' => \Tetranyble\Storage\Http\Controllers\DownloadController::class,
-            'media' => \Tetranyble\Storage\Http\Controllers\MediaController::class,
-            'chunked_upload' => \Tetranyble\Storage\Http\Controllers\ChunkedMediaUploadController::class,
-            'direct_upload' => \Tetranyble\Storage\Http\Controllers\DirectUploadController::class,
-            'library' => \Tetranyble\Storage\Http\Controllers\MediaLibraryController::class,
-            'bulk' => \Tetranyble\Storage\Http\Controllers\BulkMediaController::class,
-            'share' => \Tetranyble\Storage\Http\Controllers\MediaShareController::class,
-            'transfer' => \Tetranyble\Storage\Http\Controllers\MediaTransferController::class,
+            'download' => DownloadController::class,
+            'media' => MediaController::class,
+            'chunked_upload' => ChunkedMediaUploadController::class,
+            'direct_upload' => DirectUploadController::class,
+            'library' => MediaLibraryController::class,
+            'bulk' => BulkMediaController::class,
+            'share' => MediaShareController::class,
+            'transfer' => MediaTransferController::class,
         ],
     ],
 

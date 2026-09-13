@@ -2,8 +2,6 @@
 
 namespace Tetranyble\Storage\Modules\Versioning\Infrastructure\Application;
 
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
-
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -11,9 +9,10 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 use Tetranyble\Storage\Modules\Versioning\Domain\Aggregates\VersionGroup;
 
 /**
@@ -168,7 +167,7 @@ class MediaVersioningService
      * The version-group row is locked while changing current-version state, so
      * concurrent revisions cannot leave multiple rows marked current.
      *
-     * @param array{0: string, 1: int, 2: int|null} $context
+     * @param  array{0: string, 1: int, 2: int|null}  $context
      */
     public function applyContext(Media $media, array $context, bool $isCurrent = true): void
     {
@@ -337,7 +336,7 @@ class MediaVersioningService
     private function assertWorkspaceMedia(Model $workspace, Media $media): void
     {
         if ((int) ($media->workspace_id ?? 0) !== (int) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 

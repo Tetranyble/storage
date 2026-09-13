@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 
 class UpdateMedia
 {

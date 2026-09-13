@@ -28,11 +28,11 @@ final class DefaultCloudProviderRegistryFactory
                 self::value($config, 'dropbox.client_secret'),
                 self::value($config, 'dropbox.redirect_uri'),
             ),
-            new S3Provider(),
-            new AzureBlobProvider(),
-            new GcsProvider(),
-            new CloudinaryProvider(),
-            new LocalProvider(),
+            new S3Provider,
+            new AzureBlobProvider,
+            new GcsProvider,
+            new CloudinaryProvider,
+            new LocalProvider,
         ]);
     }
 

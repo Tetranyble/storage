@@ -1,32 +1,35 @@
 <?php
+
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Storage;
-use Tetranyble\Storage\Modules\Remote\Infrastructure\RemoteMediaDownloadService;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
-use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaDerivativeService;
 use Tetranyble\Storage\Modules\Remote\Application\Contracts\RemoteMediaImporter;
+use Tetranyble\Storage\Modules\Remote\Infrastructure\RemoteMediaDownloadService;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
 use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\CurrentMediaSelectionService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStoragePathResolver;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
 use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
-use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaDerivativeService;
 use Tetranyble\Storage\Support\StorageConfig;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
+
 class MediaService implements RemoteMediaImporter
 {
     public function __construct(
@@ -44,6 +47,7 @@ class MediaService implements RemoteMediaImporter
         protected MediaStoragePathResolver $paths,
         protected MediaDerivativeService $derivatives,
     ) {}
+
     public function uploadUploadedFile(UploadedFile $file, MediaUploadOptions $options): Media
     {
         return $this->persistUploadedFile($file, $options);
@@ -1111,7 +1115,7 @@ class MediaService implements RemoteMediaImporter
      * compensation because the Media row is already the authoritative owner of
      * the object.
      *
-     * @param array{media: Media, replaced_media: Media|null, version_context: array} $state
+     * @param  array{media: Media, replaced_media: Media|null, version_context: array}  $state
      */
     protected function finishStoredFilePersistence(array $state, MediaUploadOptions $options): Media
     {
@@ -1168,8 +1172,6 @@ class MediaService implements RemoteMediaImporter
     {
         return $this->currentSelection->select($media);
     }
-
-
 
     protected function resolveReplacedMedia(MediaUploadOptions $options): ?Media
     {
@@ -1346,6 +1348,4 @@ class MediaService implements RemoteMediaImporter
 
         return filter_var($path, FILTER_VALIDATE_URL) !== false;
     }
-
-
 }

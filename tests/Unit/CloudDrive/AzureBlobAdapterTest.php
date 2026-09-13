@@ -3,26 +3,29 @@
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
 use Carbon\Carbon;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\AzureBlobAdapter;
-use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\DirectoryListing;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\StorageAttributes;
+use League\Flysystem\UnableToReadFile;
 use Mockery;
 use Mockery\MockInterface;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\AzureBlobAdapter;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class AzureBlobAdapterTest extends PackageTestCase
 {
     private MockInterface $fs;
+
     private AzureBlobAdapter $adapter;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->fs      = Mockery::mock(FilesystemOperator::class);
+        $this->fs = Mockery::mock(FilesystemOperator::class);
         $this->adapter = new AzureBlobAdapter('UseDevelopmentStorage=true', 'test-container');
         $this->adapter->setFilesystem($this->fs);
     }
@@ -74,7 +77,7 @@ class AzureBlobAdapterTest extends PackageTestCase
     {
         $this->fs->allows('read')
             ->with('ghost.txt')
-            ->andThrow(new \League\Flysystem\UnableToReadFile('ghost.txt'));
+            ->andThrow(new UnableToReadFile('ghost.txt'));
 
         $this->expectException(\RuntimeException::class);
 
@@ -188,9 +191,9 @@ class AzureBlobAdapterTest extends PackageTestCase
     // ---------------------------------------------------------------
 
     /** @param StorageAttributes[] $items */
-    private function makeListing(array $items): \League\Flysystem\DirectoryListing
+    private function makeListing(array $items): DirectoryListing
     {
-        return new \League\Flysystem\DirectoryListing(
+        return new DirectoryListing(
             new \ArrayIterator($items)
         );
     }

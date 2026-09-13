@@ -7,8 +7,8 @@ use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 readonly class DirectUploadProviderPlan
 {
     /**
-     * @param array<string, string> $headers
-     * @param list<DirectUploadPart> $parts
+     * @param  array<string, string>  $headers
+     * @param  list<DirectUploadPart>  $parts
      */
     public function __construct(
         public DirectUploadMode $mode,

@@ -19,6 +19,7 @@ final class StorageRetentionCommand extends Command
         $apply = (bool) $this->option('apply');
         if ($apply && ! (bool) config('tetranyble-storage.retention.enabled', false)) {
             $this->error('Retention execution is disabled. Set STORAGE_RETENTION_ENABLED=true before using --apply.');
+
             return self::FAILURE;
         }
 
@@ -39,6 +40,7 @@ final class StorageRetentionCommand extends Command
         );
 
         $this->info($apply ? 'Retention applied.' : 'Dry run only; pass --apply to execute.');
+
         return self::SUCCESS;
     }
 }

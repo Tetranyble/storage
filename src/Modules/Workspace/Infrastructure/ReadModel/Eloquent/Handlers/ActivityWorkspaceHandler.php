@@ -36,8 +36,8 @@ final class ActivityWorkspaceHandler
             ];
         }
 
-        $mediaMorph = (new Media())->getMorphClass();
-        $folderMorph = (new Folder())->getMorphClass();
+        $mediaMorph = (new Media)->getMorphClass();
+        $folderMorph = (new Folder)->getMorphClass();
         $visibleMedia = $this->visibility->visibleMedia($workspace, $actor)->select('media.id');
         $visibleFolders = $this->visibility->visibleFolders($workspace, $actor)->select('folders.id');
 

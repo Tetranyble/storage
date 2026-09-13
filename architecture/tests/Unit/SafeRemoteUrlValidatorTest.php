@@ -10,7 +10,7 @@ class SafeRemoteUrlValidatorTest extends PackageTestCase
 {
     public function test_private_and_non_http_urls_are_rejected(): void
     {
-        $validator = new SafeRemoteUrlValidator();
+        $validator = new SafeRemoteUrlValidator;
 
         foreach (['http://127.0.0.1/secret', 'http://[::1]/secret', 'file:///etc/passwd'] as $url) {
             try {
@@ -26,7 +26,7 @@ class SafeRemoteUrlValidatorTest extends PackageTestCase
     {
         config()->set('tetranyble-storage.remote.allowed_hosts', ['assets.example.com']);
         config()->set('tetranyble-storage.remote.block_private_networks', false);
-        $validator = new SafeRemoteUrlValidator();
+        $validator = new SafeRemoteUrlValidator;
 
         $validator->assertSafe('https://cdn.assets.example.com/photo.png');
         $this->expectException(RemoteDownloadException::class);

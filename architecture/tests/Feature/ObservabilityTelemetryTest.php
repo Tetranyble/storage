@@ -5,26 +5,27 @@ namespace Tetranyble\Storage\Tests\Feature;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Tetranyble\Storage\Events\StorageTelemetryRecorded;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
 use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
-use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
-use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
-use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Events\StorageTelemetryRecorded;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\Health\Infrastructure\Application\StorageHealthService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
+use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
 use Tetranyble\Storage\Modules\Observability\Infrastructure\NullStorageTelemetry;
+use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class ObservabilityTelemetryTest extends PackageTestCase
@@ -75,10 +76,8 @@ class ObservabilityTelemetryTest extends PackageTestCase
             // expected
         }
 
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->type === 'counter' && $event->name === 'quota.rejections');
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->type === 'event' && $event->name === 'quota.rejected' && $event->level === 'warning');
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->type === 'counter' && $event->name === 'quota.rejections');
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->type === 'event' && $event->name === 'quota.rejected' && $event->level === 'warning');
     }
 
     public function test_access_denial_emits_safe_telemetry(): void
@@ -87,7 +86,7 @@ class ObservabilityTelemetryTest extends PackageTestCase
         $user = User::create(['workspace_id' => $workspace->id, 'name' => 'Viewer']);
         $media = Media::create([
             'workspace_id' => $workspace->id,
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'disk' => Disk::PRIVATE,
             'path' => 'opaque/file.bin',
             'size' => 1,
@@ -101,12 +100,12 @@ class ObservabilityTelemetryTest extends PackageTestCase
             // expected
         }
 
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->name === 'access.denied'
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->name === 'access.denied'
             && ($event->context['workspace_id'] ?? null) === (int) $workspace->id
             && ($event->context['user_id'] ?? null) === (int) $user->id
             && ! array_key_exists('path', $event->context));
     }
+
     public function test_compensated_upload_failure_emits_upload_failure_telemetry(): void
     {
         Storage::fake('local');
@@ -119,6 +118,7 @@ class ObservabilityTelemetryTest extends PackageTestCase
                 size: 4,
                 store: function (): string {
                     Storage::disk('local')->put('telemetry/failure.bin', 'data');
+
                     return 'telemetry/failure.bin';
                 },
                 commit: fn () => throw new \RuntimeException('database failed'),
@@ -129,12 +129,10 @@ class ObservabilityTelemetryTest extends PackageTestCase
             // expected
         }
 
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->type === 'counter'
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->type === 'counter'
             && $event->name === 'uploads.failures'
             && ($event->context['reason'] ?? null) === 'telemetry_test_rollback');
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->type === 'event'
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->type === 'event'
             && $event->name === 'upload.lifecycle_failed'
             && ! array_key_exists('path', $event->context));
         Storage::disk('local')->assertMissing('telemetry/failure.bin');
@@ -170,8 +168,7 @@ class ObservabilityTelemetryTest extends PackageTestCase
             // expected
         }
 
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->name === 'oauth.refresh_failed'
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->name === 'oauth.refresh_failed'
             && ($event->context['provider'] ?? null) === 'dropbox'
             && ! array_key_exists('refresh_token', $event->context));
     }
@@ -179,7 +176,7 @@ class ObservabilityTelemetryTest extends PackageTestCase
     public function test_health_check_emits_aggregate_backlog_gauges_without_paths(): void
     {
         config()->set('tetranyble-storage.observability.health.disks', ['local']);
-        \Illuminate\Support\Facades\Storage::fake('local');
+        Storage::fake('local');
         $workspace = Workspace::create(['name' => 'Health metrics']);
         StorageOrphan::create([
             'workspace_id' => $workspace->id,
@@ -191,8 +188,7 @@ class ObservabilityTelemetryTest extends PackageTestCase
 
         app(StorageHealthService::class)->check((int) $workspace->id);
 
-        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) =>
-            $event->type === 'gauge'
+        Event::assertDispatched(StorageTelemetryRecorded::class, fn (StorageTelemetryRecorded $event) => $event->type === 'gauge'
             && $event->name === 'health.orphans.orphan_count'
             && $event->value === 1
             && ! str_contains(json_encode($event->context) ?: '', 'never-emit-this-path'));
@@ -204,5 +200,4 @@ class ObservabilityTelemetryTest extends PackageTestCase
 
         $this->assertInstanceOf(NullStorageTelemetry::class, app(StorageTelemetry::class));
     }
-
 }

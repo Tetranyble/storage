@@ -9,17 +9,23 @@ use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadPart;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\DTO\DirectUploadProviderPlan;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadMode;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\ValueObject\PartNumber;
-use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Domain\ValueObject\FileSize;
 
 final class FakeDirectUploadGateway implements DirectUploadGateway
 {
     public bool $supported = true;
+
     public bool $failBegin = false;
+
     public bool $failAbort = false;
+
     public int $abortCalls = 0;
+
     public int $completeCalls = 0;
+
     public array $signedParts = [];
+
     public ?DirectUploadObject $object = null;
 
     public function supports(Disk $disk): bool

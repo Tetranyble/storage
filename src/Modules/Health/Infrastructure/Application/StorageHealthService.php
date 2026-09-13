@@ -5,22 +5,22 @@ namespace Tetranyble\Storage\Modules\Health\Infrastructure\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
+use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
 use Tetranyble\Storage\Modules\Health\Domain\DTO\HealthCheckResult;
 use Tetranyble\Storage\Modules\Health\Domain\Enums\HealthStatus;
-use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
-use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
+use Tetranyble\Storage\Support\StorageConfig;
+use Throwable;
 
 final class StorageHealthService
 {
@@ -110,6 +110,7 @@ final class StorageHealthService
         foreach ($disks as $disk) {
             if (! config()->has("filesystems.disks.{$disk}")) {
                 $failed[] = $disk;
+
                 continue;
             }
 
@@ -156,7 +157,7 @@ final class StorageHealthService
         $overQuota = 0;
         $maxAbsoluteDrift = 0;
 
-        foreach ($query->orderBy((new $workspaceClass())->getKeyName())->limit($limit)->get() as $workspace) {
+        foreach ($query->orderBy((new $workspaceClass)->getKeyName())->limit($limit)->get() as $workspace) {
             if (! $workspace instanceof Model) {
                 continue;
             }

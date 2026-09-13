@@ -6,20 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Throwable;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
-use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\StorageTransferAuthorizer;
-use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Application\MediaProcessingDispatcher;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaDerivativeService;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Support\StorageConfig;
-use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
-use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaDerivativeService;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageLifecycleService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Support\StorageConfig;
+use Throwable;
 
 /**
  * Transfers authoritative media objects between storage drivers.
@@ -195,7 +195,7 @@ class MediaStorageTransferService
     private function assertWorkspaceMedia(Model $workspace, Media $media): void
     {
         if ((string) $media->workspace_id !== (string) $workspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
     }
 

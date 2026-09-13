@@ -12,7 +12,7 @@ class DownloadResponder
     {
         return response($payload->binary, 200, [
             'Content-Type' => $payload->mime,
-            'Content-Disposition' => (new ResponseHeaderBag())->makeDisposition('attachment', SafeDownloadFilename::from($payload->filename), 'download'),
+            'Content-Disposition' => (new ResponseHeaderBag)->makeDisposition('attachment', SafeDownloadFilename::from($payload->filename), 'download'),
             'Content-Length' => strlen($payload->binary),
             'Cache-Control' => 'no-store, no-cache, must-revalidate',
             'X-Content-Type-Options' => 'nosniff',

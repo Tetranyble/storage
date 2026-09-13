@@ -2,18 +2,17 @@
 
 namespace Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
-use Throwable;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Support\StorageConfig;
+use Throwable;
 
 /**
  * Owns derivative persistence, quota accounting, and physical cleanup.
@@ -222,8 +221,9 @@ final class MediaDerivativeService
 
         $usageByWorkspace = [];
         foreach ($derivatives as $derivative) {
-            if ($derivative->getAttribute('workspace_id')) {
-                $workspaceId = (int) $derivative->workspace_id;
+            $workspaceIdValue = $derivative->getAttribute('workspace_id');
+            if ($workspaceIdValue) {
+                $workspaceId = (int) $workspaceIdValue;
                 $usageByWorkspace[$workspaceId] = ($usageByWorkspace[$workspaceId] ?? 0) + (int) $derivative->getAttribute('size');
             }
         }
@@ -239,10 +239,12 @@ final class MediaDerivativeService
         });
 
         foreach ($derivatives as $derivative) {
-            if ($derivative->getAttribute('disk') instanceof Disk && $derivative->getAttribute('path') !== '') {
+            $disk = $derivative->getAttribute('disk');
+            $path = $derivative->getAttribute('path');
+            if ($disk instanceof Disk && is_string($path) && $path !== '') {
                 $this->orphans->deleteOrTrack(
-                    $derivative->disk,
-                    $derivative->path,
+                    $disk,
+                    $path,
                     $derivative->getAttribute('workspace_id') ? (int) $derivative->getAttribute('workspace_id') : null,
                     (int) $derivative->getAttribute('size'),
                     'derivative_delete',

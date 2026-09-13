@@ -2,12 +2,12 @@
 
 namespace Tetranyble\Storage\Tests;
 
-use Tetranyble\Storage\StorageServiceProvider;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase;
+use Tetranyble\Storage\StorageServiceProvider;
 
 abstract class PackageTestCase extends TestCase
 {
@@ -37,9 +37,9 @@ abstract class PackageTestCase extends TestCase
 
         if ($connection === 'sqlite') {
             config()->set('database.connections.sqlite', [
-                'driver'                  => 'sqlite',
-                'database'                => ':memory:',
-                'prefix'                  => '',
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
                 'foreign_key_constraints' => true,
             ]);
         } elseif ($connection === 'pgsql') {
@@ -83,15 +83,15 @@ abstract class PackageTestCase extends TestCase
         config()->set('filesystems.default', 'local');
         config()->set('filesystems.disks.local', [
             'driver' => 'local',
-            'root'   => storage_path('app'),
-            'throw'  => false,
+            'root' => storage_path('app'),
+            'throw' => false,
         ]);
         config()->set('filesystems.disks.public', [
-            'driver'     => 'local',
-            'root'       => storage_path('app/public'),
-            'url'        => '/storage',
+            'driver' => 'local',
+            'root' => storage_path('app/public'),
+            'url' => '/storage',
             'visibility' => 'public',
-            'throw'      => false,
+            'throw' => false,
         ]);
         config()->set('filesystems.disks.s3-private', [
             'driver' => 'local',

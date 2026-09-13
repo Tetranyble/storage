@@ -2,8 +2,6 @@
 
 namespace Tetranyble\Storage\Modules\Access\Application\Contracts;
 
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-
 interface StorageTransferAuthorizer
 {
     public function authorizeCopy(

@@ -4,9 +4,9 @@ namespace Tetranyble\Storage\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Application\Bulk\BulkMediaService;
 use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
 use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\Bulk\BulkMediaService;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 final class BulkMediaController extends StorageController
@@ -32,7 +32,7 @@ final class BulkMediaController extends StorageController
     public function delete(Request $request): JsonResponse
     {
         if (! (bool) config('tetranyble-storage.bulk.allow_permanent_delete', false)) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         return $this->respond($request, fn ($workspace, $ids, $actor) => $this->bulk->delete($workspace, $ids, $actor));

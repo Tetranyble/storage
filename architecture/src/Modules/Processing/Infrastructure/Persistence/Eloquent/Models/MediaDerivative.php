@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns\HasUuid;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 
 /**
  * Eloquent attributes exposed by this package model.
+ *
  * @property mixed $disk
  * @property mixed $format
  * @property mixed $height

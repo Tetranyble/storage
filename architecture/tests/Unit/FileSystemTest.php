@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
+use Illuminate\Support\Facades\Storage;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Illuminate\Support\Facades\Storage;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class FileSystemTest extends PackageTestCase
@@ -36,7 +36,6 @@ class FileSystemTest extends PackageTestCase
 
         $this->assertStringContainsString($path, $result);
     }
-
 
     public function test_get_rejects_absolute_urls_and_does_not_act_as_an_http_client(): void
     {

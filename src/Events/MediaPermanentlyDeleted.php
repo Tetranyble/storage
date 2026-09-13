@@ -3,6 +3,7 @@
 namespace Tetranyble\Storage\Events;
 
 use Illuminate\Database\Eloquent\Model;
+
 class MediaPermanentlyDeleted
 {
     public function __construct(

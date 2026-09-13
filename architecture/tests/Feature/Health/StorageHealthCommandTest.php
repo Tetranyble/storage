@@ -4,18 +4,20 @@ namespace Tetranyble\Storage\Tests\Feature\Health;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
-use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
-use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
-use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
-use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
+use Illuminate\Support\Str;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\DirectUpload\Domain\Enums\DirectUploadStatus;
+use Tetranyble\Storage\Modules\DirectUpload\Infrastructure\Persistence\Eloquent\Models\DirectUploadSession;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadSessionStatus;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class StorageHealthCommandTest extends PackageTestCase
@@ -58,7 +60,7 @@ class StorageHealthCommandTest extends PackageTestCase
         $workspace = Workspace::create(['name' => 'Processing']);
         Media::create([
             'workspace_id' => $workspace->id,
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'disk' => Disk::PRIVATE,
             'path' => 'safe/opaque.bin',
             'size' => 10,
@@ -98,7 +100,7 @@ class StorageHealthCommandTest extends PackageTestCase
     public function test_stuck_resumable_and_direct_uploads_are_reported_as_aggregate_counts(): void
     {
         $workspace = Workspace::create(['name' => 'Uploads']);
-        $user = \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::create([
+        $user = User::create([
             'workspace_id' => $workspace->id,
             'name' => 'Uploader',
         ]);

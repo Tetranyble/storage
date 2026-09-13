@@ -3,12 +3,12 @@
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media;
 
 use Illuminate\Support\Facades\DB;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
-use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Support\StorageConfig;
 
 /**
@@ -118,18 +118,20 @@ class MediaDeletionService
         }
 
         foreach ($media->derivatives()->get() as $derivative) {
-            if (! $derivative->getAttribute('disk') instanceof Disk || $derivative->getAttribute('path') === '') {
+            $disk = $derivative->getAttribute('disk');
+            $path = $derivative->getAttribute('path');
+            if (! $disk instanceof Disk || ! is_string($path) || $path === '') {
                 continue;
             }
 
-            $key = $derivative->disk->value."\0".$derivative->path;
+            $key = $disk->value."\0".$path;
             if (isset($seen[$key])) {
                 continue;
             }
             $seen[$key] = true;
             $objects[] = [
-                'disk' => $derivative->disk,
-                'path' => $derivative->path,
+                'disk' => $disk,
+                'path' => $path,
                 'size' => (int) $derivative->getAttribute('size'),
                 'reason' => 'derivative_delete',
             ];

@@ -7,9 +7,9 @@ final class TransferResult
     /** @param  array<array{path: string, error: string}>  $errors */
     public function __construct(
         public readonly CloudFile $root,
-        public readonly int       $filesCopied,
-        public readonly int       $foldersCreated,
-        public readonly array     $errors = [],
+        public readonly int $filesCopied,
+        public readonly int $foldersCreated,
+        public readonly array $errors = [],
     ) {}
 
     public function hasErrors(): bool
@@ -20,11 +20,11 @@ final class TransferResult
     public function toArray(): array
     {
         return [
-            'root'            => $this->root->toArray(),
-            'files_copied'    => $this->filesCopied,
+            'root' => $this->root->toArray(),
+            'files_copied' => $this->filesCopied,
             'folders_created' => $this->foldersCreated,
-            'errors'          => $this->errors,
-            'has_errors'      => $this->hasErrors(),
+            'errors' => $this->errors,
+            'has_errors' => $this->hasErrors(),
         ];
     }
 }

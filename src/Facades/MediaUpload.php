@@ -2,14 +2,14 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
-use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Facade;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 
 /**
  * @method static Media uploadFor(Model $model, UploadedFile $file, string $description = '', string $attribution = '', string $directory = 'media', MediaPurpose $purpose = MediaPurpose::GENERAL, ?Disk $disk = null, bool $replaceExisting = false, bool $makeCurrent = true)
@@ -24,13 +24,13 @@ use Illuminate\Support\Facades\Facade;
  * @method static Media attachExistingMediaToModel(Media $media, Model $model, MediaPurpose $purpose = MediaPurpose::GENERAL, bool $replaceExisting = false, string $directory = 'media')
  * @method static Media createRevisionFromUpload(Media $media, UploadedFile $file, ?int $userId = null)
  * @method static Media restoreRevision(Media $revision, ?int $userId = null)
- * @method static void  deleteMediaItem(Media $media)
- * @method static void  clearMedia(Model $model)
- * @method static void  purgeMedia(Model $model)
+ * @method static void deleteMediaItem(Media $media)
+ * @method static void clearMedia(Model $model)
+ * @method static void purgeMedia(Model $model)
  * @method static \Illuminate\Database\Eloquent\Collection revisionsFor(Media $media)
  * @method static \Illuminate\Database\Eloquent\Collection revisionActivityFor(Media $media)
  *
- * @see \Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService
+ * @see MediaService
  */
 class MediaUpload extends Facade
 {

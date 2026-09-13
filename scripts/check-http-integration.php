@@ -1,13 +1,14 @@
 <?php
 
 declare(strict_types=1);
+use Tetranyble\Storage\Http\Responses\SafeDownloadFilename;
 
 $root = dirname(__DIR__);
 $failures = [];
 
 require_once $root.'/src/Http/Responses/SafeDownloadFilename.php';
 $unsafeName = "../folder/evil\r\nheader.pdf";
-$safeName = \Tetranyble\Storage\Http\Responses\SafeDownloadFilename::from($unsafeName);
+$safeName = SafeDownloadFilename::from($unsafeName);
 if (str_contains($safeName, "\r") || str_contains($safeName, "\n") || str_contains($safeName, '/') || str_contains($safeName, '\\')) {
     $failures[] = 'SafeDownloadFilename failed to remove path/header control characters.';
 }
@@ -41,7 +42,7 @@ foreach (['StorageConfigurationValidator::class', 'StorageBindings::register(', 
         $failures[] = "StorageServiceProvider is missing composition-root delegation: {$required}.";
     }
 }
-if (substr_count($provider, "->bind(") > 0 || substr_count($provider, "->singleton(") > 1) {
+if (substr_count($provider, '->bind(') > 0 || substr_count($provider, '->singleton(') > 1) {
     $failures[] = 'StorageServiceProvider must remain a thin composition root; feature bindings belong in StorageBindings.';
 }
 
@@ -57,7 +58,7 @@ foreach ($controllers as $file) {
 }
 
 $shareController = (string) file_get_contents($root.'/src/Http/Controllers/MediaShareController.php');
-if (! str_contains($shareController, "isMethod('post')") || str_contains($shareController, "->input('password')" ) && ! str_contains($shareController, "isMethod('post')")) {
+if (! str_contains($shareController, "isMethod('post')") || str_contains($shareController, "->input('password')") && ! str_contains($shareController, "isMethod('post')")) {
     $failures[] = 'Public share passwords must not be consumed from GET query strings.';
 }
 
@@ -85,7 +86,7 @@ foreach (['X-Content-Type-Options', 'Referrer-Policy', 'X-Frame-Options', 'Permi
 
 foreach (['DownloadResponder.php', 'MediaStreamResponder.php'] as $file) {
     $source = (string) file_get_contents($root.'/src/Http/Responses/'.$file);
-    if (! str_contains($source, 'makeDisposition(') || str_contains($source, "addslashes(")) {
+    if (! str_contains($source, 'makeDisposition(') || str_contains($source, 'addslashes(')) {
         $failures[] = "{$file} must build Content-Disposition with Symfony's safe disposition helper.";
     }
 }

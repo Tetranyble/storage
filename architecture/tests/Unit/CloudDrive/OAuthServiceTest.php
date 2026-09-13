@@ -2,13 +2,14 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
-use Illuminate\Support\Facades\Http;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class OAuthServiceTest extends PackageTestCase
 {
@@ -20,15 +21,15 @@ class OAuthServiceTest extends PackageTestCase
 
         $this->oauth = new OAuthService([
             'google_drive' => [
-                'client_id'     => 'goog-client-id',
+                'client_id' => 'goog-client-id',
                 'client_secret' => 'goog-client-secret',
-                'redirect_uri'  => 'https://app.test/auth/google/callback',
+                'redirect_uri' => 'https://app.test/auth/google/callback',
             ],
             'onedrive' => [
-                'client_id'     => 'ms-client-id',
+                'client_id' => 'ms-client-id',
                 'client_secret' => 'ms-client-secret',
-                'redirect_uri'  => 'https://app.test/auth/onedrive/callback',
-                'tenant_id'     => 'common',
+                'redirect_uri' => 'https://app.test/auth/onedrive/callback',
+                'tenant_id' => 'common',
             ],
             'dropbox' => [
                 'client_id' => 'dropbox-client-id',
@@ -81,10 +82,10 @@ class OAuthServiceTest extends PackageTestCase
     {
         Http::fake([
             'https://oauth2.googleapis.com/token' => Http::response([
-                'access_token'  => 'goog-access-token',
+                'access_token' => 'goog-access-token',
                 'refresh_token' => 'goog-refresh-token',
-                'expires_in'    => 3600,
-                'token_type'    => 'Bearer',
+                'expires_in' => 3600,
+                'token_type' => 'Bearer',
             ], 200),
         ]);
 
@@ -92,7 +93,7 @@ class OAuthServiceTest extends PackageTestCase
 
         $this->assertSame('goog-access-token', $data['access_token']);
         $this->assertSame('goog-refresh-token', $data['refresh_token']);
-        $this->assertInstanceOf(\Carbon\Carbon::class, $data['expires_at']);
+        $this->assertInstanceOf(Carbon::class, $data['expires_at']);
         $this->assertTrue($data['expires_at']->isFuture());
     }
 
@@ -100,9 +101,9 @@ class OAuthServiceTest extends PackageTestCase
     {
         Http::fake([
             'https://login.microsoftonline.com/*/oauth2/v2.0/token' => Http::response([
-                'access_token'  => 'ms-access-token',
+                'access_token' => 'ms-access-token',
                 'refresh_token' => 'ms-refresh-token',
-                'expires_in'    => 3600,
+                'expires_in' => 3600,
             ], 200),
         ]);
 

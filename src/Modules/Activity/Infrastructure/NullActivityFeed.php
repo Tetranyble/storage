@@ -2,19 +2,17 @@
 
 namespace Tetranyble\Storage\Modules\Activity\Infrastructure;
 
-use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
-use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
-use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
+use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;
 
 class NullActivityFeed implements ActivityFeed
 {
     public function forWorkspace(object $workspace): Collection
     {
-        return (new Activity())->newCollection();
+        return (new Activity)->newCollection();
     }
 
     public function paginateWorkspace(
@@ -32,6 +30,6 @@ class NullActivityFeed implements ActivityFeed
 
     public function forVersionGroup(object $media, string $groupUuid): Collection
     {
-        return (new Activity())->newCollection();
+        return (new Activity)->newCollection();
     }
 }

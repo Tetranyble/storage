@@ -5,12 +5,12 @@ namespace Tetranyble\Storage\Support;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 use RuntimeException;
-use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
 use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 
@@ -35,7 +35,7 @@ class StorageConfig
             'user' => self::userModelClass(),
         ] as $key => $modelClass) {
             /** @var Model $model */
-            $model = new $modelClass();
+            $model = new $modelClass;
 
             if ($model->getKeyType() !== 'int') {
                 throw new LogicException(
@@ -198,6 +198,7 @@ class StorageConfig
     private static function modelClass(string $key, string $default): string
     {
         $model = config("tetranyble-storage.models.{$key}", $default);
+
         return self::assertModelClass($key, $model);
     }
 
@@ -218,7 +219,7 @@ class StorageConfig
         }
 
         /** @var Model $model */
-        $model = new $modelClass();
+        $model = new $modelClass;
         $table = $model->getTable();
 
         return is_string($table) && $table !== '' ? $table : $fallback;

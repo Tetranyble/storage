@@ -6,10 +6,10 @@ use Carbon\Carbon;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemOperator;
+use RuntimeException;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
 use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
-use RuntimeException;
 
 /**
  * Shared CloudAdapter implementation backed by a League\Flysystem\FilesystemOperator.
@@ -21,40 +21,40 @@ abstract class AbstractFlysystemAdapter implements CloudAdapter, SupportsSameDri
 
     public function listFolder(string $folderId = 'root'): array
     {
-        $prefix  = $folderId === 'root' ? '' : rtrim($folderId, '/').'/';
+        $prefix = $folderId === 'root' ? '' : rtrim($folderId, '/').'/';
         $listing = $this->disk->listContents($prefix, false);
         $results = [];
 
         foreach ($listing as $item) {
-            $path   = $item->path();
-            $name   = basename($path);
+            $path = $item->path();
+            $name = basename($path);
             $parent = $prefix === '' ? 'root' : rtrim($prefix, '/');
 
             if ($item instanceof DirectoryAttributes) {
                 $results[] = new CloudFile(
-                    id:           $path,
-                    name:         $name,
-                    isFolder:     true,
-                    size:         null,
-                    mimeType:     null,
-                    webViewLink:  null,
+                    id: $path,
+                    name: $name,
+                    isFolder: true,
+                    size: null,
+                    mimeType: null,
+                    webViewLink: null,
                     thumbnailUrl: null,
-                    modifiedAt:   null,
-                    parentId:     $parent,
+                    modifiedAt: null,
+                    parentId: $parent,
                 );
             } elseif ($item instanceof FileAttributes) {
                 $lastMod = $item->lastModified();
 
                 $results[] = new CloudFile(
-                    id:           $path,
-                    name:         $name,
-                    isFolder:     false,
-                    size:         $item->fileSize(),
-                    mimeType:     $item->mimeType(),
-                    webViewLink:  null,
+                    id: $path,
+                    name: $name,
+                    isFolder: false,
+                    size: $item->fileSize(),
+                    mimeType: $item->mimeType(),
+                    webViewLink: null,
                     thumbnailUrl: null,
-                    modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
-                    parentId:     $parent,
+                    modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+                    parentId: $parent,
                 );
             }
         }
@@ -78,15 +78,15 @@ abstract class AbstractFlysystemAdapter implements CloudAdapter, SupportsSameDri
         $this->disk->write($path, $binary, ['mimetype' => $mimeType]);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     false,
-            size:         strlen($binary),
-            mimeType:     $mimeType,
-            webViewLink:  null,
+            id: $path,
+            name: $name,
+            isFolder: false,
+            size: strlen($binary),
+            mimeType: $mimeType,
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $folderId,
+            modifiedAt: Carbon::now(),
+            parentId: $folderId,
         );
     }
 
@@ -110,15 +110,15 @@ abstract class AbstractFlysystemAdapter implements CloudAdapter, SupportsSameDri
         $this->disk->createDirectory($path);
 
         return new CloudFile(
-            id:           $path,
-            name:         $name,
-            isFolder:     true,
-            size:         null,
-            mimeType:     null,
-            webViewLink:  null,
+            id: $path,
+            name: $name,
+            isFolder: true,
+            size: null,
+            mimeType: null,
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   Carbon::now(),
-            parentId:     $parentId,
+            modifiedAt: Carbon::now(),
+            parentId: $parentId,
         );
     }
 
@@ -140,14 +140,14 @@ abstract class AbstractFlysystemAdapter implements CloudAdapter, SupportsSameDri
         $lastMod = $this->tryInt(fn () => $this->disk->lastModified($fileId));
 
         return new CloudFile(
-            id:           $fileId,
-            name:         $name,
-            isFolder:     false,
-            size:         $this->tryInt(fn () => $this->disk->fileSize($fileId)),
-            mimeType:     $this->tryString(fn () => $this->disk->mimeType($fileId)),
-            webViewLink:  null,
+            id: $fileId,
+            name: $name,
+            isFolder: false,
+            size: $this->tryInt(fn () => $this->disk->fileSize($fileId)),
+            mimeType: $this->tryString(fn () => $this->disk->mimeType($fileId)),
+            webViewLink: null,
             thumbnailUrl: null,
-            modifiedAt:   $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
+            modifiedAt: $lastMod ? Carbon::createFromTimestamp($lastMod) : null,
         );
     }
 
@@ -189,11 +189,19 @@ abstract class AbstractFlysystemAdapter implements CloudAdapter, SupportsSameDri
 
     private function tryInt(\Closure $fn): ?int
     {
-        try { return $fn(); } catch (\Throwable) { return null; }
+        try {
+            return $fn();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function tryString(\Closure $fn): ?string
     {
-        try { return $fn(); } catch (\Throwable) { return null; }
+        try {
+            return $fn();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

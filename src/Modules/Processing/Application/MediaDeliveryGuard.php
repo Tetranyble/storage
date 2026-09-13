@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Modules\Processing\Application;
 
-use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
+use Tetranyble\Storage\Modules\Trust\Domain\Contracts\MediaDeliveryPolicy;
 use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
 
 class MediaDeliveryGuard

@@ -5,10 +5,10 @@ namespace Tetranyble\Storage\Modules\Storage\Infrastructure;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
-use Throwable;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Observability\Domain\Contracts\StorageTelemetry;
 use Tetranyble\Storage\Modules\Observability\Domain\Enums\TelemetryLevel;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Throwable;
 
 /**
  * Coordinates the non-transactional object store with database-backed quota.
@@ -30,8 +30,9 @@ class StorageLifecycleService
      * Any failure before commit removes the object and releases the reservation.
      *
      * @template T
-     * @param Closure(): string $store
-     * @param Closure(string): T $commit
+     *
+     * @param  Closure(): string  $store
+     * @param  Closure(string): T  $commit
      * @return T
      */
     public function storeAndCommit(
@@ -84,7 +85,8 @@ class StorageLifecycleService
      * remote import). If quota or DB persistence fails, remove/track the object.
      *
      * @template T
-     * @param Closure(): T $commit
+     *
+     * @param  Closure(): T  $commit
      * @return T
      */
     public function commitExisting(

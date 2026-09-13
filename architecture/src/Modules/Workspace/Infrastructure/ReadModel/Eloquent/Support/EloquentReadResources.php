@@ -15,6 +15,7 @@ final class EloquentReadResources
         if (! $resource instanceof Model) {
             throw new InvalidArgumentException("Expected {$label} to be an Eloquent model.");
         }
+
         return $resource;
     }
 
@@ -23,6 +24,7 @@ final class EloquentReadResources
         if (! $resource instanceof Media) {
             throw new InvalidArgumentException('Expected media to be a package Media model.');
         }
+
         return $resource;
     }
 }

@@ -21,8 +21,11 @@ use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 {
     private const GRAPH_URL = 'https://graph.microsoft.com/v1.0';
+
     private const TOKEN_URL = 'https://login.microsoftonline.com/%s/oauth2/v2.0/token';
+
     private const MS_SCOPES = 'https://graph.microsoft.com/Files.ReadWrite.All offline_access';
+
     private const ITEM_SELECT = 'id,name,file,folder,size,webUrl,lastModifiedDateTime,parentReference';
 
     public function __construct(
@@ -127,7 +130,7 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
 
         $response = $this->graph()->post($this->graphUrl($path), [
             'name' => $name,
-            'folder' => new \stdClass(),
+            'folder' => new \stdClass,
             '@microsoft.graph.conflictBehavior' => 'rename',
         ]);
 

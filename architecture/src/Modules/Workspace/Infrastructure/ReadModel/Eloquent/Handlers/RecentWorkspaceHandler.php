@@ -36,8 +36,8 @@ final class RecentWorkspaceHandler
             ];
         }
 
-        $folderMorph = (new Folder())->getMorphClass();
-        $mediaMorph = (new Media())->getMorphClass();
+        $folderMorph = (new Folder)->getMorphClass();
+        $mediaMorph = (new Media)->getMorphClass();
 
         $folderActivity = Activity::query()
             ->selectRaw('subject_id, MAX(created_at) as last_activity_at')

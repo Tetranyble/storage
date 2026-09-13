@@ -2,7 +2,6 @@
 
 namespace Tetranyble\Storage\Modules\Media\Application\DTO;
 
-
 class MediaMailPayload
 {
     public function __construct(

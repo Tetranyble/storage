@@ -4,13 +4,13 @@ namespace Tetranyble\Storage\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
-use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
-use Tetranyble\Storage\Modules\Sharing\Infrastructure\Application\MediaShareService;
-use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
 use Tetranyble\Storage\Http\Responses\MediaStreamResponder;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
-use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Application\MediaShareService;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
 
 class MediaShareController extends StorageController
 {
@@ -28,18 +28,18 @@ class MediaShareController extends StorageController
     {
         $share = $this->shares->resolveByToken($token);
         if (! $share instanceof MediaShare) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         $currentWorkspace = $this->workspace->currentWorkspace($request);
         if ($currentWorkspace && (string) $share->workspace_id !== (string) $currentWorkspace->getKey()) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         $media = $share->shareable;
         if (! $media instanceof Media
             || (string) $media->workspace_id !== (string) $share->workspace_id) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         // Do not consume a limited download slot for media that is quarantined.

@@ -2,13 +2,12 @@
 
 namespace Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing;
 
-use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
 use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
-use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
-use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
 
 class MediaPostProcessor
 {
@@ -19,7 +18,7 @@ class MediaPostProcessor
         private readonly MediaDerivativeService $derivatives,
         ?ImageOrientationNormalizer $orientation = null,
     ) {
-        $this->orientation = $orientation ?? new ImageOrientationNormalizer(new ExifOrientationReader());
+        $this->orientation = $orientation ?? new ImageOrientationNormalizer(new ExifOrientationReader);
     }
 
     public function process(Media $media, MediaUploadOptions $options): array
@@ -57,6 +56,7 @@ class MediaPostProcessor
 
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
             $media->forceFill(['width' => $displayWidth, 'height' => $displayHeight])->save();
+
             return $results;
         }
 
@@ -177,6 +177,7 @@ class MediaPostProcessor
                 $existing = $this->derivatives->find($media, $definition['kind'], $definition['variant'], $format);
                 if ($existing !== null && $this->derivatives->exists($existing)) {
                     $stored[] = $existing;
+
                     continue;
                 }
 

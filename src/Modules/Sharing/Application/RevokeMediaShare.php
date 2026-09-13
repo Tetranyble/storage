@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Modules\Sharing\Application;
 
-use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
-use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\WorkspaceResourceLocator;
 use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
+use Tetranyble\Storage\Modules\Shared\Application\Contracts\ResourceState;
 use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 final class RevokeMediaShare
@@ -32,7 +32,7 @@ final class RevokeMediaShare
         if ((string) $this->state->attribute($share, 'workspace_id') !== (string) $this->state->key($workspace)
             || $this->state->attribute($share, 'shareable_type') !== $this->state->morphClass($media)
             || (string) $this->state->attribute($share, 'shareable_id') !== (string) $this->state->key($media)) {
-            throw new ResourceNotFoundException();
+            throw new ResourceNotFoundException;
         }
 
         $shareId = $this->state->key($share);
