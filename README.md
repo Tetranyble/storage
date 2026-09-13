@@ -1,6 +1,7 @@
 # Tetranyble Storage
 
 [![CI](https://github.com/Tetranyble/storage/actions/workflows/ci.yml/badge.svg)](https://github.com/Tetranyble/storage/actions/workflows/ci.yml)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/Tetranyble/storage/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/Tetranyble/storage/tree/main)
 [![Latest Packagist Version](https://img.shields.io/packagist/v/tetranyble/storage.svg)](https://packagist.org/packages/tetranyble/storage)
 [![Total Downloads](https://img.shields.io/packagist/dt/tetranyble/storage.svg)](https://packagist.org/packages/tetranyble/storage)
 
@@ -439,4 +440,3 @@ When package routes are enabled, they use fail-closed authenticated middleware, 
 ## CI/CD and releases
 
 Every pull request and `main` push runs the supported PHP/Laravel matrix, architecture/static-analysis/format/test gates, PostgreSQL/MySQL integration tests, query budgets and MinIO S3 contracts. Stable publication is performed through the gated GitHub **Release** workflow; it creates the tested Git tag and GitHub Release, after which the existing Packagist GitHub integration indexes the version. See [`docs/CI_CD.md`](docs/CI_CD.md).
-
