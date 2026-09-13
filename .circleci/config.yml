@@ -1,0 +1,371 @@
+version: 2.1
+
+commands:
+  install_extensions:
+    parameters:
+      extensions:
+        type: string
+        default: "gd pcntl"
+    steps:
+      - run:
+          name: Ensure required PHP extensions
+          command: |
+            set -euo pipefail
+            missing=""
+            for extension in << parameters.extensions >>; do
+              module="$extension"
+              case "$extension" in
+                pdo_mysql) module="pdo_mysql" ;;
+                pdo_pgsql) module="pdo_pgsql" ;;
+              esac
+              if ! php -m | grep -qi "^${module}$"; then
+                missing="${missing} ${extension}"
+              fi
+            done
+            if [ -n "${missing// }" ]; then
+              # cimg/php ships CircleCI's install-php-extensions helper.
+              sudo -E install-php-extensions $missing
+            fi
+            php -m | sort
+
+  select_testbench:
+    parameters:
+      constraint:
+        type: string
+    steps:
+      - run:
+          name: Select Laravel Testbench << parameters.constraint >>
+          command: composer require --dev "orchestra/testbench:<< parameters.constraint >>" --no-update
+
+  composer_update:
+    steps:
+      - restore_cache:
+          keys:
+            - composer-downloads-v1-{{ checksum "composer.json" }}
+            - composer-downloads-v1-
+      - run:
+          name: Install dependencies
+          command: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+      - save_cache:
+          key: composer-downloads-v1-{{ checksum "composer.json" }}
+          paths:
+            - ~/.composer/cache
+
+  wait_for_database:
+    parameters:
+      connection:
+        type: enum
+        enum: [mysql, pgsql]
+    steps:
+      - run:
+          name: Wait for << parameters.connection >>
+          command: |
+            set -euo pipefail
+            for attempt in $(seq 1 60); do
+              if [ "<< parameters.connection >>" = "pgsql" ]; then
+                if php -r 'try { new PDO("pgsql:host=127.0.0.1;port=".getenv("STORAGE_TEST_DB_PORT").";dbname=".getenv("STORAGE_TEST_DB_DATABASE"), getenv("STORAGE_TEST_DB_USERNAME"), getenv("STORAGE_TEST_DB_PASSWORD")); exit(0); } catch (Throwable $e) { exit(1); }'; then
+                  exit 0
+                fi
+              else
+                if php -r 'try { new PDO("mysql:host=127.0.0.1;port=".getenv("STORAGE_TEST_DB_PORT").";dbname=".getenv("STORAGE_TEST_DB_DATABASE"), getenv("STORAGE_TEST_DB_USERNAME"), getenv("STORAGE_TEST_DB_PASSWORD")); exit(0); } catch (Throwable $e) { exit(1); }'; then
+                  exit 0
+                fi
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for << parameters.connection >>" >&2
+            exit 1
+
+jobs:
+  quality:
+    docker:
+      - image: cimg/php:8.5
+    resource_class: medium
+    environment:
+      COMPOSER_MEMORY_LIMIT: "-1"
+    steps:
+      - checkout
+      - install_extensions:
+          extensions: "gd pcntl"
+      - select_testbench:
+          constraint: "^11.0"
+      - composer_update
+      - run:
+          name: Validate package metadata
+          command: composer validate --strict
+      - run:
+          name: Production gate
+          command: composer run production:gate
+      - run:
+          name: Dependency audit
+          command: composer audit --locked
+
+  compatibility:
+    parameters:
+      php_version:
+        type: string
+      testbench:
+        type: string
+    docker:
+      - image: cimg/php:<< parameters.php_version >>
+    resource_class: medium
+    environment:
+      COMPOSER_MEMORY_LIMIT: "-1"
+    steps:
+      - checkout
+      - install_extensions:
+          extensions: "gd pcntl"
+      - select_testbench:
+          constraint: << parameters.testbench >>
+      - composer_update
+      - run:
+          name: Architecture gate
+          command: composer run architecture
+      - run:
+          name: PHPUnit
+          command: composer test
+
+  database_integration:
+    parameters:
+      connection:
+        type: enum
+        enum: [mysql, pgsql]
+      database_image:
+        type: string
+      port:
+        type: string
+      username:
+        type: string
+      password:
+        type: string
+      testbench:
+        type: string
+    docker:
+      - image: cimg/php:8.4
+      - image: << parameters.database_image >>
+        environment:
+          POSTGRES_DB: storage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          MYSQL_DATABASE: storage_test
+          MYSQL_ROOT_PASSWORD: root
+    resource_class: medium
+    environment:
+      COMPOSER_MEMORY_LIMIT: "-1"
+      STORAGE_TEST_DB_CONNECTION: << parameters.connection >>
+      STORAGE_TEST_DB_HOST: 127.0.0.1
+      STORAGE_TEST_DB_PORT: << parameters.port >>
+      STORAGE_TEST_DB_DATABASE: storage_test
+      STORAGE_TEST_DB_USERNAME: << parameters.username >>
+      STORAGE_TEST_DB_PASSWORD: << parameters.password >>
+    steps:
+      - checkout
+      - install_extensions:
+          extensions: "gd pcntl pdo_mysql pdo_pgsql"
+      - wait_for_database:
+          connection: << parameters.connection >>
+      - select_testbench:
+          constraint: << parameters.testbench >>
+      - composer_update
+      - run:
+          name: Architecture gate
+          command: composer run architecture
+      - run:
+          name: Full suite on real database
+          command: composer test
+
+  query_performance:
+    parameters:
+      connection:
+        type: enum
+        enum: [mysql, pgsql]
+      database_image:
+        type: string
+      port:
+        type: string
+      username:
+        type: string
+      password:
+        type: string
+    docker:
+      - image: cimg/php:8.4
+      - image: << parameters.database_image >>
+        environment:
+          POSTGRES_DB: storage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          MYSQL_DATABASE: storage_test
+          MYSQL_ROOT_PASSWORD: root
+    resource_class: medium
+    environment:
+      COMPOSER_MEMORY_LIMIT: "-1"
+      STORAGE_TEST_DB_CONNECTION: << parameters.connection >>
+      STORAGE_TEST_DB_HOST: 127.0.0.1
+      STORAGE_TEST_DB_PORT: << parameters.port >>
+      STORAGE_TEST_DB_DATABASE: storage_test
+      STORAGE_TEST_DB_USERNAME: << parameters.username >>
+      STORAGE_TEST_DB_PASSWORD: << parameters.password >>
+      STORAGE_RUN_QUERY_BENCHMARKS: "1"
+    steps:
+      - checkout
+      - install_extensions:
+          extensions: "gd pdo_mysql pdo_pgsql"
+      - wait_for_database:
+          connection: << parameters.connection >>
+      - select_testbench:
+          constraint: "^11.0"
+      - composer_update
+      - run:
+          name: Large-workspace query budgets and N+1 checks
+          command: composer benchmark:queries
+
+  s3_provider_contract:
+    docker:
+      - image: cimg/php:8.4
+      - image: quay.io/minio/minio:latest
+        command: ["server", "/data", "--address", ":9000"]
+        environment:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+    resource_class: medium
+    environment:
+      COMPOSER_MEMORY_LIMIT: "-1"
+      STORAGE_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_TEST_S3_BUCKET: tetranyble-storage-test
+      STORAGE_TEST_S3_KEY: minioadmin
+      STORAGE_TEST_S3_SECRET: minioadmin
+    steps:
+      - checkout
+      - install_extensions:
+          extensions: "gd"
+      - run:
+          name: Wait for MinIO
+          command: |
+            set -euo pipefail
+            for attempt in $(seq 1 60); do
+              if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+                exit 0
+              fi
+              sleep 2
+            done
+            echo 'Timed out waiting for MinIO' >&2
+            exit 1
+      - select_testbench:
+          constraint: "^10.0"
+      - composer_update
+      - run:
+          name: S3-compatible provider contract suite
+          command: vendor/bin/phpunit tests/Integration/S3ProviderContractTest.php
+
+  required_ci:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    steps:
+      - run:
+          name: CircleCI verification complete
+          command: echo 'All CircleCI release-critical verification lanes succeeded.'
+
+workflows:
+  verify:
+    jobs:
+      - quality
+
+      - compatibility:
+          name: compatibility-php82-laravel12
+          php_version: "8.2"
+          testbench: "^10.0"
+      - compatibility:
+          name: compatibility-php83-laravel12
+          php_version: "8.3"
+          testbench: "^10.0"
+      - compatibility:
+          name: compatibility-php84-laravel12
+          php_version: "8.4"
+          testbench: "^10.0"
+      - compatibility:
+          name: compatibility-php85-laravel12
+          php_version: "8.5"
+          testbench: "^10.0"
+      - compatibility:
+          name: compatibility-php83-laravel13
+          php_version: "8.3"
+          testbench: "^11.0"
+      - compatibility:
+          name: compatibility-php84-laravel13
+          php_version: "8.4"
+          testbench: "^11.0"
+      - compatibility:
+          name: compatibility-php85-laravel13
+          php_version: "8.5"
+          testbench: "^11.0"
+
+      - database_integration:
+          name: database-postgresql-laravel12
+          connection: pgsql
+          database_image: postgres:17
+          port: "5432"
+          username: postgres
+          password: postgres
+          testbench: "^10.0"
+      - database_integration:
+          name: database-mysql-laravel12
+          connection: mysql
+          database_image: mysql:8.4
+          port: "3306"
+          username: root
+          password: root
+          testbench: "^10.0"
+      - database_integration:
+          name: database-postgresql-laravel13
+          connection: pgsql
+          database_image: postgres:17
+          port: "5432"
+          username: postgres
+          password: postgres
+          testbench: "^11.0"
+      - database_integration:
+          name: database-mysql-laravel13
+          connection: mysql
+          database_image: mysql:8.4
+          port: "3306"
+          username: root
+          password: root
+          testbench: "^11.0"
+
+      - query_performance:
+          name: query-performance-postgresql
+          connection: pgsql
+          database_image: postgres:17
+          port: "5432"
+          username: postgres
+          password: postgres
+      - query_performance:
+          name: query-performance-mysql
+          connection: mysql
+          database_image: mysql:8.4
+          port: "3306"
+          username: root
+          password: root
+
+      - s3_provider_contract:
+          name: s3-provider-contract-minio
+
+      - required_ci:
+          name: CircleCI Required CI
+          requires:
+            - quality
+            - compatibility-php82-laravel12
+            - compatibility-php83-laravel12
+            - compatibility-php84-laravel12
+            - compatibility-php85-laravel12
+            - compatibility-php83-laravel13
+            - compatibility-php84-laravel13
+            - compatibility-php85-laravel13
+            - database-postgresql-laravel12
+            - database-mysql-laravel12
+            - database-postgresql-laravel13
+            - database-mysql-laravel13
+            - query-performance-postgresql
+            - query-performance-mysql
+            - s3-provider-contract-minio
