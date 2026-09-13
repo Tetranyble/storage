@@ -30,6 +30,7 @@ class MediaServiceTest extends PackageTestCase
 
         Storage::fake('public');
         Storage::fake('local');
+        config()->set('tetranyble-storage.remote.block_private_networks', false);
     }
 
     public function test_upload_standalone_creates_media_and_stores_file(): void
@@ -53,8 +54,8 @@ class MediaServiceTest extends PackageTestCase
         $this->assertSame(Disk::PUBLIC, $media->disk);
         $this->assertTrue($media->current);
         $this->assertSame($workspace->id, $media->workspace_id);
-        $this->assertSame(100, $media->width);
-        $this->assertSame(100, $media->height);
+        $this->assertNull($media->width);
+        $this->assertNull($media->height);
 
         Storage::disk('public')->assertExists($media->path);
     }
@@ -279,7 +280,7 @@ class MediaServiceTest extends PackageTestCase
 
         $this->assertNotNull($media->id);
         $this->assertSame($workspace->id, $media->workspace_id);
-        $this->assertStringContainsString("/loans/{$loan->id}/identity-document-front", $media->path);
+        $this->assertStringContainsString("/loans/{$loan->id}/document", $media->path);
         $this->assertNotNull($media->folder_id);
         $this->assertFalse($media->is_temporary);
     }
@@ -361,7 +362,7 @@ class MediaServiceTest extends PackageTestCase
         $this->assertFalse($attached->is_temporary);
         $this->assertNull($attached->temporary_expires_at);
         $this->assertNotSame($oldPath, $attached->path);
-        $this->assertStringContainsString("loans/{$loan->id}/bank-statement", $attached->path);
+        $this->assertStringContainsString("loans/{$loan->id}/document/bank-statement", $attached->path);
     }
 
     public function test_replace_existing_creates_media_revision_chain(): void

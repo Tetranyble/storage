@@ -2,16 +2,26 @@
 
 namespace Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\Models\Concerns;
 
+use Illuminate\Database\Eloquent\Concerns\HasUniqueIds;
 use Illuminate\Support\Str;
 
 trait HasUuid
 {
-    protected static function bootHasUuid(): void
+    use HasUniqueIds;
+
+    public function usesUniqueIds(): bool
     {
-        static::creating(function ($model): void {
-            if (empty($model->uuid)) {
-                $model->uuid = (string) Str::uuid();
-            }
-        });
+        return true;
+    }
+
+    /** @return list<string> */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function newUniqueId(): string
+    {
+        return (string) Str::uuid();
     }
 }

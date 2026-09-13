@@ -36,8 +36,10 @@ class PurgeTemporaryMediaCommandTest extends PackageTestCase
             'temporary_expires_at' => now()->subMinute(),
         ]);
 
-        $this->artisan('tetranyble-storage:purge-temp')
-            ->expectsOutput('Purged 1 temporary media items.')
+        config()->set('tetranyble-storage.retention.enabled', true);
+
+        $this->artisan('storage:retention', ['--apply' => true])
+            ->expectsOutput('Retention applied.')
             ->assertSuccessful();
 
         Storage::disk('local')->assertMissing($path);

@@ -41,7 +41,7 @@ class S3DirectUploadGatewayTest extends PackageTestCase
     {
         $gateway = new S3DirectUploadGateway();
         $method = new ReflectionMethod($gateway, 'checksumHex');
-        $encoded = base64_encode(str_repeat("\\x01", 32));
+        $encoded = base64_encode(str_repeat("\x01", 32));
 
         $this->assertNull($method->invoke($gateway, $encoded, 'COMPOSITE'));
         $this->assertSame(str_repeat('01', 32), $method->invoke($gateway, $encoded, 'FULL_OBJECT'));

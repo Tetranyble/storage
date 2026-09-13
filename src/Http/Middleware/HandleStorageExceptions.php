@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tetranyble\Storage\Http\Responses\ApiErrorResponder;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
@@ -78,6 +79,29 @@ final class HandleStorageExceptions
         }
 
         throw new HttpException($status, $message, $exception);
+    }
+
+    /**
+     * Laravel 13 renders route-pipeline exceptions before outer middleware can
+     * catch them. Register this method with the framework exception handler so
+     * package exceptions keep the same HTTP contract on both Laravel versions.
+     */
+    public function render(Request $request, \Throwable $exception): ?JsonResponse
+    {
+        return match (true) {
+            $exception instanceof AuthenticationRequiredException =>
+                $this->errors->error('authentication_required', 'Authentication is required.', 401),
+            $exception instanceof AccessDeniedException =>
+                $this->errors->error('access_denied', 'Access denied.', 403),
+            $exception instanceof ResourceNotFoundException =>
+                $this->errors->error('resource_not_found', 'Resource not found.', 404),
+            $exception instanceof StorageException => $this->errors->error(
+                $this->codeFor($exception),
+                $this->messageFor($exception),
+                $this->statusFor($exception),
+            ),
+            default => null,
+        };
     }
 
     private function statusFor(StorageException $exception): int

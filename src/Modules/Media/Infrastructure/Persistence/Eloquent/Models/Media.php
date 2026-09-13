@@ -3,7 +3,7 @@
 namespace Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models;
 
 use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
-use Tetranyble\Storage\Http\Mail\LaravelMediaMailService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Mail\LaravelMediaMailService;
 use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
 use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
 use Tetranyble\Storage\Modules\Activity\Infrastructure\Persistence\Eloquent\Models\Activity;

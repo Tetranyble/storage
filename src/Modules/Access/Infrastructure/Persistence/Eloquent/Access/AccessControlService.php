@@ -107,14 +107,20 @@ class AccessControlService
         $role = CollaboratorRole::highest($role, $this->explicitRoleFor($workspace, $resource, $user));
 
         if ($resource instanceof Media && $resource->folder) {
-            $role = CollaboratorRole::highest($role, $this->folderRoleChain($workspace, $resource->folder, $user));
+            $role = CollaboratorRole::highest($role, $this->folderRoleChain(
+                $workspace,
+                $resource->folder,
+                $user,
+                $this->resolveScope($resource) !== AccessScope::RESTRICTED,
+            ));
         }
 
         $scope = $this->resolveScope($resource);
         if ($scope === AccessScope::WORKSPACE
             && ! $this->hasRestrictedBoundary($resource)
-            && $userWorkspaceId === (int) $workspace->getKey()) {
-            $role = CollaboratorRole::highest($role, CollaboratorRole::EDITOR);
+            && $userWorkspaceId === (int) $workspace->getKey()
+            && $role === null) {
+            $role = CollaboratorRole::EDITOR;
         }
 
         return $role;
@@ -207,11 +213,17 @@ class AccessControlService
         return is_string($role) ? CollaboratorRole::tryFrom($role) : null;
     }
 
-    private function folderRoleChain(Model $workspace, Folder $folder, Model $user): ?CollaboratorRole
+    private function folderRoleChain(
+        Model $workspace,
+        Folder $folder,
+        Model $user,
+        bool $allowWorkspaceFallback = true,
+    ): ?CollaboratorRole
     {
         $role = null;
         $cursor = $folder;
         $workspaceFallbackBlocked = false;
+        $workspaceFallbackAvailable = false;
 
         while ($cursor) {
             $role = CollaboratorRole::highest($role, $this->explicitRoleFor($workspace, $cursor, $user));
@@ -225,13 +237,19 @@ class AccessControlService
                 $workspaceFallbackBlocked = true;
             }
 
-            if (! $workspaceFallbackBlocked
-                && $scope === AccessScope::WORKSPACE
-                && StorageConfig::actorWorkspaceId($user) === (int) $workspace->getKey()) {
-                $role = CollaboratorRole::highest($role, CollaboratorRole::EDITOR);
+            if ($scope === AccessScope::WORKSPACE) {
+                $workspaceFallbackAvailable = true;
             }
 
             $cursor = $cursor->parent;
+        }
+
+        if ($role === null
+            && $allowWorkspaceFallback
+            && $workspaceFallbackAvailable
+            && ! $workspaceFallbackBlocked
+            && StorageConfig::actorWorkspaceId($user) === (int) $workspace->getKey()) {
+            return CollaboratorRole::EDITOR;
         }
 
         return $role;

@@ -35,6 +35,9 @@ class DropboxAdapter implements CloudAdapter, SupportsSameDriveOperations
     public function getFileBinary(string $fileId): string
     {
         $stream = $this->client->download($this->dbxPath($fileId));
+        if ($stream instanceof \Stringable) {
+            return (string) $stream;
+        }
         if (! is_resource($stream)) {
             throw new RuntimeException('Dropbox download did not return a readable stream.');
         }

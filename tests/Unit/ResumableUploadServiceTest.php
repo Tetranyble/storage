@@ -3,6 +3,8 @@
 namespace Tetranyble\Storage\Tests\Unit;
 
 use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\IncomingFile;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
@@ -80,7 +82,7 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', 'hello '),
+            $this->incomingChunk('chunk-1.part', 'hello '),
             1
         );
 
@@ -92,7 +94,7 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-2.part', 'world'),
+            $this->incomingChunk('chunk-2.part', 'world'),
             2
         );
 
@@ -194,7 +196,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk.part', '12345'),
+                $this->incomingChunk('chunk.part', '12345'),
                 1,
             );
             $this->fail('Oversized chunk should be rejected before it is stored.');
@@ -228,14 +230,14 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', '123'),
+            $this->incomingChunk('chunk-1.part', '123'),
             1,
         );
 
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk-2.part', '456'),
+                $this->incomingChunk('chunk-2.part', '456'),
                 2,
             );
             $this->fail('Cumulative upload bytes should enforce the configured maximum.');
@@ -270,14 +272,14 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', '123'),
+            $this->incomingChunk('chunk-1.part', '123'),
             1,
         );
 
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk-2.part', '456'),
+                $this->incomingChunk('chunk-2.part', '456'),
                 2,
             );
             $this->fail('Chunks must not exceed the declared upload-session byte count.');
@@ -313,7 +315,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk.part', '1'),
+                $this->incomingChunk('chunk.part', '1'),
                 1,
             );
             $this->fail('An assembling upload session must be immutable to chunk writers.');
@@ -344,7 +346,7 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk.part', '1234'),
+            $this->incomingChunk('chunk.part', '1234'),
             1,
         );
 
@@ -372,7 +374,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         ));
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', '1'),
+            $this->incomingChunk('chunk-1.part', '1'),
             1,
         );
         $chunkPath = (string) $session->chunks()->firstOrFail()->path;
@@ -422,7 +424,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk.part', '1'),
+                $this->incomingChunk('chunk.part', '1'),
                 1,
             );
             $this->fail('Finalized sessions must reject subsequent chunks.');
@@ -548,13 +550,13 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', 'same'),
+            $this->incomingChunk('chunk-1.part', 'same'),
             1
         );
 
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1-duplicate.part', 'same'),
+            $this->incomingChunk('chunk-1-duplicate.part', 'same'),
             1
         );
 
@@ -563,7 +565,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk-1-conflict.part', 'different'),
+                $this->incomingChunk('chunk-1-conflict.part', 'different'),
                 1
             );
             $this->fail('Conflicting chunk retry should raise an exception.');
@@ -607,7 +609,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         try {
             $service->appendChunk(
                 $session,
-                UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+                $this->incomingChunk('chunk-1.part', 'hello'),
                 1,
             );
             $this->fail('The forced chunk persistence failure should have escaped.');
@@ -646,7 +648,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         ));
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+            $this->incomingChunk('chunk-1.part', 'hello'),
             1,
         );
         $chunkPath = (string) $session->chunks()->firstOrFail()->path;
@@ -702,7 +704,7 @@ class ResumableUploadServiceTest extends PackageTestCase
         ));
         $session = $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', 'hello'),
+            $this->incomingChunk('chunk-1.part', 'hello'),
             1,
         );
         $chunkPath = (string) $session->chunks()->firstOrFail()->path;
@@ -756,12 +758,19 @@ class ResumableUploadServiceTest extends PackageTestCase
 
         $service->appendChunk(
             $session,
-            UploadedFile::fake()->createWithContent('chunk-1.part', 'partial'),
+            $this->incomingChunk('chunk-1.part', 'partial'),
             1
         );
 
         $this->expectException(IncompleteUploadSessionException::class);
 
         $service->finalizeSession(UploadSession::query()->findOrFail($session->id));
+    }
+
+    private function incomingChunk(string $name, string $contents): IncomingFile
+    {
+        return LaravelIncomingFile::fromUploadedFile(
+            UploadedFile::fake()->createWithContent($name, $contents),
+        );
     }
 }

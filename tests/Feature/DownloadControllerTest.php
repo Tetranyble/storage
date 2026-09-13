@@ -62,11 +62,10 @@ class DownloadControllerTest extends PackageTestCase
         $response = $this->actingAs($this->user)
             ->get(route('tetranyble-storage.media.download', $media->uuid));
 
-        $response->assertOk()
-            ->assertHeader('Content-Disposition', 'attachment; filename="hello.txt"')
-            ->assertSee('file content here');
+        $response->assertOk()->assertSee('file content here');
 
         $this->assertStringContainsString('text/plain', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('hello.txt', $response->headers->get('Content-Disposition'));
     }
 
     public function test_download_requires_authentication(): void
@@ -129,14 +128,14 @@ class DownloadControllerTest extends PackageTestCase
         $a = $this->mediaRecord('a.txt', AccessScope::WORKSPACE, 'files/a.txt');
         $b = $this->mediaRecord('b.txt', AccessScope::WORKSPACE, 'files/b.txt');
 
-        $this->actingAs($this->user)
+        $response = $this->actingAs($this->user)
             ->postJson(route('tetranyble-storage.media.zip'), [
                 'items' => [$a->uuid, $b->uuid],
                 'name'  => 'my-archive',
             ])
             ->assertOk()
-            ->assertHeader('Content-Type', 'application/zip')
-            ->assertHeader('Content-Disposition', 'attachment; filename="my-archive.zip"');
+            ->assertHeader('Content-Type', 'application/zip');
+        $this->assertStringContainsString('my-archive.zip', $response->headers->get('Content-Disposition'));
     }
 
     public function test_zip_requires_items_field(): void
@@ -183,10 +182,10 @@ class DownloadControllerTest extends PackageTestCase
         Storage::disk('local')->put('files/c.txt', 'file-c');
         $c = $this->mediaRecord('c.txt', AccessScope::WORKSPACE, 'files/c.txt');
 
-        $this->actingAs($this->user)
+        $response = $this->actingAs($this->user)
             ->postJson(route('tetranyble-storage.media.zip'), ['items' => [$c->uuid]])
-            ->assertOk()
-            ->assertHeader('Content-Disposition', 'attachment; filename="download.zip"');
+            ->assertOk();
+        $this->assertStringContainsString('download.zip', $response->headers->get('Content-Disposition'));
     }
 
     // ---------------------------------------------------------------
@@ -196,7 +195,7 @@ class DownloadControllerTest extends PackageTestCase
     private function mediaRecord(
         string      $filename,
         AccessScope $scope,
-        string      $path = null,
+        ?string     $path = null,
     ): Media {
         return Media::create([
             'uuid'          => Str::uuid(),

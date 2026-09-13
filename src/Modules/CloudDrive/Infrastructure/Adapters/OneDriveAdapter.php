@@ -44,9 +44,19 @@ class OneDriveAdapter implements CloudAdapter, SupportsSameDriveOperations
         $url = $this->graphUrl($path);
         $items = [];
         $query = ['$select' => self::ITEM_SELECT, '$top' => 200];
+        $visitedUrls = [];
 
         while ($url !== null) {
-            $response = $this->graph()->get($url, $query);
+            if (isset($visitedUrls[$url])) {
+                throw new RuntimeException("Unable to list OneDrive folder: Microsoft Graph returned a repeated pagination URL: {$url}");
+            }
+            $visitedUrls[$url] = true;
+
+            // Passing an empty `query` option makes Guzzle replace the query
+            // string already embedded in Graph's absolute nextLink URL.
+            $response = $query === []
+                ? $this->graph()->get($url)
+                : $this->graph()->get($url, $query);
             $data = $this->jsonOrFail($response, 'list OneDrive folder');
 
             foreach (($data['value'] ?? []) as $item) {

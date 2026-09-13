@@ -143,7 +143,10 @@ final class StorageBindings
             $app->bind(MediaDeliveryPolicy::class, ConfiguredMediaDeliveryPolicy::class);
         }
         if (! $app->bound(MediaContentInspector::class)) {
-            $app->bind(MediaContentInspector::class, FileSignatureMediaInspector::class);
+            $app->bind(MediaContentInspector::class, fn ($app) => new FileSignatureMediaInspector(
+                $app->make(FileSystemContract::class),
+                (int) $app['config']->get('tetranyble-storage.trust.content_inspection.prefix_bytes', 64 * 1024),
+            ));
         }
         if (! $app->bound(QuarantineStoragePolicy::class)) {
             $app->bind(QuarantineStoragePolicy::class, ConfiguredQuarantineStoragePolicy::class);

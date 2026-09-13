@@ -265,11 +265,12 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         $folder = $this->folder($workspace, $owner);
         $media = $this->media($workspace, $owner, $folder);
         Storage::disk('local')->put($media->path, 'version one');
+        $upload = UploadedFile::fake()->create('document.pdf', 4, 'application/pdf');
 
         $revision = $this->app->make(CreateMediaRevision::class)->handle(
             $workspace,
             $media,
-            UploadedFile::fake()->create('document.pdf', 4, 'application/pdf'),
+            LaravelIncomingFile::fromUploadedFile($upload),
             $owner,
         );
 

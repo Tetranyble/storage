@@ -49,7 +49,6 @@ class ConnectedDriveServiceTest extends PackageTestCase
         $this->workspace = Workspace::create(['name' => 'Acme Corp', 'uuid' => \Illuminate\Support\Str::uuid()]);
         $this->user   = User::create(['name' => 'Alice', 'uuid' => \Illuminate\Support\Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
-        Event::fake();
     }
 
     public function test_connect_oauth_creates_connected_drive(): void
@@ -87,6 +86,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
     public function test_disconnect_fires_event(): void
     {
+        Event::fake();
         $drive = $this->makeDrive(CloudProvider::GOOGLE_DRIVE);
 
         $this->service->disconnect($this->workspace, $drive, $this->user);
@@ -399,6 +399,7 @@ class ConnectedDriveServiceTest extends PackageTestCase
 
     public function test_connect_local_fires_drive_connected_event(): void
     {
+        Event::fake();
         $this->service->connectLocal($this->workspace, 'local', 'My Local');
 
         Event::assertDispatched(\Tetranyble\Storage\Events\DriveConnected::class);

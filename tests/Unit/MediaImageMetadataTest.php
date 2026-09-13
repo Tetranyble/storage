@@ -19,7 +19,11 @@ class MediaImageMetadataTest extends PackageTestCase
         }
         Storage::fake(Disk::PUBLIC->value);
 
-        $binary = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAjUlEQVR4nO3QQQ3AIADAQEA5hCP7S5M8LkQkCvr2zpk5n7sD9zErMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzArMCswKzD7Abf3A9ZLA56EAAAAAElFTkSuQmCC');
+        $image = imagecreatetruecolor(100, 50);
+        ob_start();
+        imagepng($image);
+        $binary = (string) ob_get_clean();
+        imagedestroy($image);
 
         $path = 'tests/social-preview.png';
         Storage::disk(Disk::PUBLIC->value)->put($path, $binary);

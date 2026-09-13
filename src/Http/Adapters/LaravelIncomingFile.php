@@ -22,6 +22,7 @@ final class LaravelIncomingFile
             size: (int) ($file->getSize() ?? 0),
             clientMimeType: $file->getClientMimeType() ?: null,
             detectedMimeType: $file->getMimeType() ?: null,
+            sourceLease: $file,
         );
     }
 }

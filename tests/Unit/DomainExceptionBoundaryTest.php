@@ -3,6 +3,7 @@
 namespace Tetranyble\Storage\Tests\Unit;
 
 use Illuminate\Http\Request;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
@@ -18,7 +19,7 @@ use Tetranyble\Storage\Tests\PackageTestCase;
 
 class DomainExceptionBoundaryTest extends PackageTestCase
 {
-    /** @dataProvider httpMappings */
+    #[DataProvider('httpMappings')]
     public function test_http_boundary_maps_package_exceptions_to_expected_status(string $exceptionClass, int $status): void
     {
         $middleware = new HandleStorageExceptions();

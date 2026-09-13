@@ -4,6 +4,7 @@ namespace Tetranyble\Storage\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
+use ReflectionClass;
 use RuntimeException;
 use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
 use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
@@ -34,8 +35,11 @@ class StorageConfig
             'workspace' => self::workspaceModelClass(),
             'user' => self::userModelClass(),
         ] as $key => $modelClass) {
+            // Reading model metadata must not boot Eloquent during service
+            // provider registration. A booted model would attach its event
+            // listeners to an incomplete or short-lived application dispatcher.
             /** @var Model $model */
-            $model = new $modelClass();
+            $model = (new ReflectionClass($modelClass))->newInstanceWithoutConstructor();
 
             if ($model->getKeyType() !== 'int') {
                 throw new LogicException(

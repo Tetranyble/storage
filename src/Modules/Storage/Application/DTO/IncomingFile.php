@@ -20,6 +20,8 @@ readonly class IncomingFile
         public int $size,
         public ?string $clientMimeType = null,
         public ?string $detectedMimeType = null,
+        /** Keeps temporary-file owners alive for the lifetime of this DTO. */
+        private ?object $sourceLease = null,
     ) {
         if ($this->localPath === '') {
             throw new InvalidArgumentException('Incoming file path cannot be empty.');

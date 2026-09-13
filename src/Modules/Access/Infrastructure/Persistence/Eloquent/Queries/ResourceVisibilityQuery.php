@@ -216,7 +216,7 @@ final class ResourceVisibilityQuery
                 $nodes,
                 $grantRoles,
                 (int) $actor->getKey(),
-                $workspaceMatches,
+                false,
             )) {
                 $mediaFolderAccessIds[] = $folderId;
             }
@@ -260,8 +260,9 @@ final class ResourceVisibilityQuery
 
         if ($workspaceMatches
             && $node['scope'] === AccessScope::WORKSPACE->value
-            && ! $this->hasRestrictedBoundary($folderId, $nodes, $restrictedMemo)) {
-            $role = CollaboratorRole::highest($role, CollaboratorRole::EDITOR);
+            && ! $this->hasRestrictedBoundary($folderId, $nodes, $restrictedMemo)
+            && $role === null) {
+            $role = CollaboratorRole::EDITOR;
         }
 
         return $role;
@@ -283,6 +284,7 @@ final class ResourceVisibilityQuery
         $role = null;
         $cursor = $folderId;
         $workspaceFallbackBlocked = false;
+        $workspaceFallbackAvailable = false;
         $visited = [];
 
         while (isset($nodes[$cursor]) && ! isset($visited[$cursor])) {
@@ -298,20 +300,17 @@ final class ResourceVisibilityQuery
                 $role = CollaboratorRole::highest($role, CollaboratorRole::OWNER);
             }
 
-            if ($node['scope'] === AccessScope::RESTRICTED->value) {
-                $workspaceFallbackBlocked = true;
-            }
-
-            if (! $workspaceFallbackBlocked
-                && $workspaceMatches
-                && $node['scope'] === AccessScope::WORKSPACE->value) {
-                $role = CollaboratorRole::highest($role, CollaboratorRole::EDITOR);
-            }
+            $workspaceFallbackBlocked = $workspaceFallbackBlocked
+                || $node['scope'] === AccessScope::RESTRICTED->value;
+            $workspaceFallbackAvailable = $workspaceFallbackAvailable
+                || $node['scope'] === AccessScope::WORKSPACE->value;
 
             $cursor = $node['parent_id'] ?? 0;
         }
 
-        return $role;
+        return $role ?? ($workspaceMatches && $workspaceFallbackAvailable && ! $workspaceFallbackBlocked
+            ? CollaboratorRole::EDITOR
+            : null);
     }
 
     /**

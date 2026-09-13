@@ -11,7 +11,7 @@ use Tetranyble\Storage\Contracts\WorkspaceSubject;
 use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Tetranyble\Storage\Modules\Workspace\Infrastructure\AuthenticatedWorkspace;
+use Tetranyble\Storage\Http\AuthenticatedWorkspace;
 
 class StorageConfigTest extends PackageTestCase
 {

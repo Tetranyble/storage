@@ -43,7 +43,7 @@ return [
         ],
     ],
     'workspace' => [
-        'resolver' => \Tetranyble\Storage\Modules\Workspace\Infrastructure\AuthenticatedWorkspace::class,
+        'resolver' => \Tetranyble\Storage\Http\AuthenticatedWorkspace::class,
         'guard' => null,
         'workspace_relation' => 'workspace',
         'workspace_foreign_key' => 'workspace_id',
