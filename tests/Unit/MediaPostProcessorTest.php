@@ -2,169 +2,188 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaPostProcessor;
-use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Illuminate\Support\Facades\Storage;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\UnsafeMediaException;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\ExifOrientationReader;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\ImageOrientationNormalizer;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\ImageProcessing\MediaPostProcessor;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Illuminate\Support\Str;
-use Mockery;
-use Mockery\MockInterface;
 
 class MediaPostProcessorTest extends PackageTestCase
 {
-    private MockInterface $files;
-    private MediaPostProcessor $processor;
-    private Workspace $workspace;
-    private Folder $folder;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->files     = Mockery::mock(FileSystemContract::class);
-        $this->processor = new MediaPostProcessor($this->files, new StorageOrphanService($this->files));
-
-        $this->workspace = Workspace::create(['name' => 'Corp', 'uuid' => Str::uuid()]);
-        $this->folder = Folder::create([
-            'workspace_id' => $this->workspace->id,
-            'name'      => 'Root',
-            'slug'      => 'root',
-            'path'      => '/',
-            'uuid'      => Str::uuid(),
-        ]);
+        Storage::fake('public');
+        config()->set('tetranyble-storage.derivatives.thumbnail.enabled', true);
+        config()->set('tetranyble-storage.derivatives.thumbnail.formats', ['jpeg']);
+        config()->set('tetranyble-storage.derivatives.thumbnail.primary_format', 'jpeg');
+        config()->set('tetranyble-storage.derivatives.preview.enabled', false);
     }
 
-    public function test_process_non_image_returns_media_only(): void
+    public function test_non_image_creates_no_derivatives(): void
     {
-        $media = $this->makeMedia('application/pdf', 'docs/report.pdf');
+        [$workspace, $media] = $this->media('application/pdf', 'docs/report.pdf', 'pdf');
 
-        $result = $this->processor->process($media, $this->makeOptions());
+        $result = $this->processor()->process($media, new MediaUploadOptions());
 
         $this->assertArrayHasKey('media', $result);
-        $this->assertArrayNotHasKey('thumbnail', $result);
+        $this->assertArrayNotHasKey('derivatives', $result);
+        $this->assertDatabaseCount('media_derivatives', 0);
+        $this->assertSame(0, (int) $workspace->fresh()->storage_used_bytes);
     }
 
-    public function test_process_svg_skips_thumbnail(): void
-    {
-        $media = $this->makeMedia('image/svg+xml', 'images/logo.svg');
-
-        $result = $this->processor->process($media, $this->makeOptions());
-
-        $this->assertArrayNotHasKey('thumbnail', $result);
-    }
-
-    public function test_process_image_generates_thumbnail(): void
+    public function test_image_generates_first_class_thumbnail_derivative_and_updates_dimensions(): void
     {
         if (! extension_loaded('gd')) {
             $this->markTestSkipped('GD extension not available.');
         }
 
-        $png = $this->make1x1Png();
-        $media = $this->makeMedia('image/png', 'images/photo.png');
+        $png = $this->png(4, 2);
+        [$workspace, $media] = $this->media('image/png', 'images/photo.png', $png);
 
-        $this->files
-            ->shouldReceive('get')
-            ->once()
-            ->andReturn($png);
+        $result = $this->processor()->process($media, new MediaUploadOptions());
+        $derivative = MediaDerivative::query()->where('media_id', $media->id)->firstOrFail();
 
-        $this->files
-            ->shouldReceive('put')
-            ->once()
-            ->andReturn(true);
-
-        $result = $this->processor->process($media, $this->makeOptions());
-
-        $this->assertArrayHasKey('thumbnail', $result);
-        $this->assertStringContainsString('.thumbnails', $result['thumbnail']);
-        $this->assertStringEndsWith('.jpg', $result['thumbnail']);
+        $this->assertSame(MediaDerivativeKind::THUMBNAIL, $derivative->kind);
+        $this->assertTrue($derivative->is_primary);
+        $this->assertSame('jpeg', $derivative->format);
+        $this->assertStringStartsWith('.derivatives/workspace-'.$workspace->id.'/'.$media->uuid.'/', $derivative->path);
+        Storage::disk('public')->assertExists($derivative->path);
+        $this->assertSame($derivative->path, $result['thumbnail']);
+        $this->assertSame(4, $media->fresh()->width);
+        $this->assertSame(2, $media->fresh()->height);
+        $this->assertSame((int) $derivative->size, (int) $workspace->fresh()->storage_used_bytes);
     }
 
-    public function test_process_image_updates_thumbnail_path_on_media(): void
+    public function test_reprocessing_is_idempotent_for_derivative_rows_and_quota(): void
     {
         if (! extension_loaded('gd')) {
             $this->markTestSkipped('GD extension not available.');
         }
 
-        $media = $this->makeMedia('image/jpeg', 'photos/beach.jpg');
+        [$workspace, $media] = $this->media('image/png', 'images/reprocess.png', $this->png(3, 3));
+        $processor = $this->processor();
 
-        $this->files->shouldReceive('get')->andReturn($this->make1x1Png());
-        $this->files->shouldReceive('put')->andReturn(true);
+        $processor->process($media, new MediaUploadOptions());
+        $firstUsage = (int) $workspace->fresh()->storage_used_bytes;
+        $first = MediaDerivative::query()->where('media_id', $media->id)->firstOrFail();
 
-        $this->processor->process($media, $this->makeOptions());
+        $processor->process($media->fresh(), new MediaUploadOptions());
 
-        $media->refresh();
-        $this->assertNotNull($media->thumbnail_path);
-        $this->assertStringContainsString('.thumbnails', $media->thumbnail_path);
+        $this->assertDatabaseCount('media_derivatives', 1);
+        $this->assertSame($first->id, MediaDerivative::query()->where('media_id', $media->id)->firstOrFail()->id);
+        $this->assertSame($firstUsage, (int) $workspace->fresh()->storage_used_bytes);
     }
 
-    public function test_process_returns_null_thumbnail_on_fs_error(): void
+    public function test_webp_and_avif_variants_are_generated_when_supported_by_gd(): void
+    {
+        if (! extension_loaded('gd') || ! function_exists('imagewebp')) {
+            $this->markTestSkipped('GD WebP support not available.');
+        }
+
+        config()->set('tetranyble-storage.derivatives.thumbnail.formats', function_exists('imageavif') ? ['webp', 'avif'] : ['webp']);
+        config()->set('tetranyble-storage.derivatives.thumbnail.primary_format', 'webp');
+        [, $media] = $this->media('image/png', 'images/formats.png', $this->png(5, 5));
+
+        $this->processor()->process($media, new MediaUploadOptions());
+
+        $formats = MediaDerivative::query()->where('media_id', $media->id)->pluck('format')->sort()->values()->all();
+        $expected = function_exists('imageavif') ? ['avif', 'webp'] : ['webp'];
+        sort($expected);
+        $this->assertSame($expected, $formats);
+        $this->assertSame('webp', MediaDerivative::query()->where('media_id', $media->id)->where('is_primary', true)->value('format'));
+    }
+
+    public function test_image_exceeding_pixel_limit_is_rejected_before_derivative_write(): void
     {
         if (! extension_loaded('gd')) {
             $this->markTestSkipped('GD extension not available.');
         }
 
-        $media = $this->makeMedia('image/jpeg', 'photos/pic.jpg');
+        config()->set('tetranyble-storage.images.max_pixels', 10);
+        [, $media] = $this->media('image/png', 'images/oversized.png', $this->png(4, 4));
 
-        $this->files->shouldReceive('get')->andReturn($this->make1x1Png());
-        $this->files->shouldReceive('put')->andThrow(new \RuntimeException('FS error'));
-        $this->files->shouldReceive('exists')->once()->andReturnFalse();
-
-        $result = $this->processor->process($media, $this->makeOptions());
-
-        $this->assertArrayNotHasKey('thumbnail', $result);
+        $this->expectException(UnsafeMediaException::class);
+        try {
+            $this->processor()->process($media, new MediaUploadOptions());
+        } finally {
+            $this->assertDatabaseCount('media_derivatives', 0);
+        }
     }
 
-    public function test_process_skips_when_source_read_fails(): void
+    public function test_exif_orientation_reader_parses_orientation_six(): void
     {
-        $media = $this->makeMedia('image/jpeg', 'photos/pic.jpg');
+        $reader = new ExifOrientationReader();
 
-        $this->files->shouldReceive('get')->andThrow(new \RuntimeException('File not found'));
-
-        $result = $this->processor->process($media, $this->makeOptions());
-
-        $this->assertArrayNotHasKey('thumbnail', $result);
+        $this->assertSame(6, $reader->orientation($this->jpegWithOrientation(6), 'image/jpeg'));
+        $this->assertSame(1, $reader->orientation($this->jpegWithOrientation(6), 'image/png'));
     }
 
-    // ---------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------
-
-    private function makeMedia(string $mimeType, string $path): Media
+    public function test_orientation_normalizer_rotates_dimensions_for_orientation_six(): void
     {
-        return Media::create([
-            'workspace_id'  => $this->workspace->id,
-            'folder_id'  => $this->folder->id,
-            'uuid'       => Str::uuid(),
-            'disk'       => Disk::PUBLIC,
-            'path'       => $path,
-            'mime_type'  => $mimeType,
+        if (! extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension not available.');
+        }
+
+        $image = imagecreatetruecolor(4, 2);
+        $normalizer = new ImageOrientationNormalizer(new ExifOrientationReader());
+        $normalized = $normalizer->normalize($image, 6);
+
+        $this->assertSame(2, imagesx($normalized));
+        $this->assertSame(4, imagesy($normalized));
+        imagedestroy($normalized);
+    }
+
+    /** @return array{Workspace,Media} */
+    private function media(string $mime, string $path, string $binary): array
+    {
+        $workspace = Workspace::create(['name' => 'Derivative Workspace', 'storage_quota_bytes' => 10_000_000]);
+        $media = Media::create([
+            'workspace_id' => $workspace->id,
+            'disk' => Disk::PUBLIC,
+            'path' => $path,
+            'mime_type' => $mime,
+            'size' => strlen($binary),
+            'original_name' => basename($path),
         ]);
+        Storage::disk('public')->put($path, $binary);
+
+        return [$workspace, $media];
     }
 
-    private function makeOptions(): MediaUploadOptions
+    private function processor(): MediaPostProcessor
     {
-        return new MediaUploadOptions();
+        return $this->app->make(MediaPostProcessor::class);
     }
 
-    private function make1x1Png(): string
+    private function png(int $width, int $height): string
     {
-        $img = imagecreatetruecolor(1, 1);
+        if (! extension_loaded('gd')) {
+            return '';
+        }
+        $image = imagecreatetruecolor($width, $height);
         ob_start();
-        imagepng($img);
-        $binary = ob_get_clean();
-        imagedestroy($img);
-
+        imagepng($image);
+        $binary = (string) ob_get_clean();
+        imagedestroy($image);
         return $binary;
     }
 
-    protected function tearDown(): void
+    private function jpegWithOrientation(int $orientation): string
     {
-        Mockery::close();
-        parent::tearDown();
+        $tiff = 'MM'.pack('n', 42).pack('N', 8)
+            .pack('n', 1)
+            .pack('n', 0x0112).pack('n', 3).pack('N', 1).pack('n', $orientation)."\0\0"
+            .pack('N', 0);
+        $payload = "Exif\0\0".$tiff;
+        $segment = "\xFF\xE1".pack('n', strlen($payload) + 2).$payload;
+        return "\xFF\xD8".$segment."\xFF\xD9";
     }
 }

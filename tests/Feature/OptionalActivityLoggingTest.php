@@ -2,27 +2,26 @@
 
 namespace Tetranyble\Storage\Tests\Feature;
 
-use Tetranyble\Storage\Contracts\ActivityFeed;
-use Tetranyble\Storage\Contracts\ActivityLogger;
-use Tetranyble\Storage\Domain\Activity\NullActivityFeed;
-use Tetranyble\Storage\Domain\Activity\NullActivityLogger;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaVersioningService;
-use Tetranyble\Storage\Domain\Media\WorkspaceFileManagerService;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\User;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Tetranyble\Storage\Modules\Folder\Application\CreateFolder;
+use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Queries\WorkspaceFileQueryService;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityFeed;
+use Tetranyble\Storage\Modules\Activity\Application\Contracts\ActivityLogger;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Activity\Infrastructure\NullActivityFeed;
+use Tetranyble\Storage\Modules\Activity\Infrastructure\NullActivityLogger;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Tests\PackageTestCase;
 
 class OptionalActivityLoggingTest extends PackageTestCase
 {
-    /**
-     * @param  Application  $app
-     */
     protected function getEnvironmentSetUp($app): void
     {
         $app['config']->set('tetranyble-storage.activities.enabled', false);
@@ -32,7 +31,6 @@ class OptionalActivityLoggingTest extends PackageTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         Storage::fake('local');
         Schema::dropIfExists('activities');
     }
@@ -47,10 +45,12 @@ class OptionalActivityLoggingTest extends PackageTestCase
     {
         $workspace = Workspace::create(['name' => 'Workspace']);
         $user = User::create(['workspace_id' => $workspace->id, 'name' => 'Owner']);
-        $manager = $this->app->make(WorkspaceFileManagerService::class);
+        $createFolder = $this->app->make(CreateFolder::class);
+        $rename = $this->app->make(RenameMedia::class);
+        $queries = $this->app->make(WorkspaceFileQueryService::class);
         $versioning = $this->app->make(MediaVersioningService::class);
 
-        $folder = $manager->createFolder($workspace, 'Legal', null, $user);
+        $folder = $createFolder->handle($workspace, 'Legal', null, $user);
         $media = Media::create([
             'workspace_id' => $workspace->id,
             'folder_id' => $folder->id,
@@ -58,16 +58,16 @@ class OptionalActivityLoggingTest extends PackageTestCase
             'path' => 'workspaces/'.$workspace->uuid.'/file-centre/legal/nda.pdf',
             'mime_type' => 'application/pdf',
             'size' => 120,
-            'use' => MediaPurpose::GENERAL,
+            'use' => MediaPurpose::DOCUMENT,
             'current' => true,
             'uploaded_by' => $user->id,
             'original_name' => 'nda.pdf',
         ]);
         Storage::disk('local')->put($media->path, 'nda');
 
-        $renamed = $manager->renameMedia($workspace, $media, 'nda-final.pdf', $user);
-        $recent = $manager->recentPayload($workspace, $user);
-        $activity = $manager->activityPayload($workspace, $user);
+        $renamed = $rename->handle($workspace, $media, 'nda-final.pdf', $user);
+        $recent = $queries->recentCursorPayload($workspace, $user);
+        $activity = $queries->activityCursorPayload($workspace, $user);
         $history = $versioning->activity($renamed);
 
         $this->assertSame('nda-final.pdf', $renamed->fresh()->original_name);

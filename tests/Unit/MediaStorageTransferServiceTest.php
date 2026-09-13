@@ -2,21 +2,22 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaStorageTransferService;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\CloudProvider;
-use Tetranyble\Storage\Enums\CollaboratorRole;
-use Tetranyble\Storage\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Contracts\StorageTransferAuthorizer;
-use Tetranyble\Storage\Models\ConnectedDrive;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStorageTransferService;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\StorageTransferAuthorizer;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaStorageTransferServiceTest extends PackageTestCase
@@ -86,8 +87,8 @@ class MediaStorageTransferServiceTest extends PackageTestCase
         try {
             $authorizer->authorizeCopy($workspace, $source, $destination, $actor);
             $this->fail('Restricted drive copy should require grants.');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
-            $this->assertSame(403, $exception->getStatusCode());
+        } catch (AccessDeniedException) {
+            $this->addToAssertionCount(1);
         }
 
         $access = $this->app->make(ResourceAccessControl::class);

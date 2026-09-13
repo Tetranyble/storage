@@ -5,24 +5,27 @@ namespace Tetranyble\Storage\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Tetranyble\Storage\Application\Uploads\ResumableUploadSessionGuard;
-use Tetranyble\Storage\Application\Uploads\StartResumableUpload;
-use Tetranyble\Storage\Contracts\ResumableUploadManager;
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\DTO\UploadSessionOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Upload\Application\ResumableUploadSessionGuard;
+use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
+use Tetranyble\Storage\Modules\Upload\Application\Contracts\ResumableUploadManager;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 
 class ChunkedMediaUploadController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         protected readonly ResumableUploadManager $uploads,
         protected readonly StartResumableUpload $startUpload,
         protected readonly ResumableUploadSessionGuard $sessionGuard,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     public function store(Request $request): JsonResponse
@@ -92,7 +95,7 @@ class ChunkedMediaUploadController extends StorageController
         $this->sessionGuard->authorize($workspace, $session, $this->actor($request));
         $session = $this->uploads->appendChunk(
             $session,
-            $validated['file'],
+            LaravelIncomingFile::fromUploadedFile($validated['file']),
             $chunk,
             $validated['checksum'] ?? null,
         );

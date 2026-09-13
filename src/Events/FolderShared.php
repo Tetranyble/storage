@@ -3,8 +3,8 @@
 namespace Tetranyble\Storage\Events;
 
 use Illuminate\Database\Eloquent\Model;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\MediaShare;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
 
 class FolderShared
 {

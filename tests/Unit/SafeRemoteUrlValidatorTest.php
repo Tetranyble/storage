@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\Exceptions\RemoteDownloadException;
-use Tetranyble\Storage\Domain\FileSystem\SafeRemoteUrlValidator;
+use Tetranyble\Storage\Modules\Remote\Domain\Exceptions\RemoteDownloadException;
+use Tetranyble\Storage\Modules\Remote\Infrastructure\SafeRemoteUrlValidator;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class SafeRemoteUrlValidatorTest extends PackageTestCase

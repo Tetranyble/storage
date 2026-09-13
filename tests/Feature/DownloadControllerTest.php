@@ -2,13 +2,13 @@
 
 namespace Tetranyble\Storage\Tests\Feature;
 
-use Tetranyble\Storage\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\MediaStatus;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -196,7 +196,7 @@ class DownloadControllerTest extends PackageTestCase
     private function mediaRecord(
         string      $filename,
         AccessScope $scope,
-        ?string     $path = null,
+        string      $path = null,
     ): Media {
         return Media::create([
             'uuid'          => Str::uuid(),

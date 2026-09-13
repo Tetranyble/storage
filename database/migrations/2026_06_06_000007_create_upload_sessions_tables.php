@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignId('folder_id')->nullable()->constrained('folders')->nullOnDelete();
             $table->foreignId('media_id')->nullable()->constrained('media')->nullOnDelete();
             $table->string('identifier');
+            $table->string('active_identifier_hash', 64)->nullable()->unique('upload_sessions_active_identifier_unique');
             $table->string('fingerprint', 64);
             $table->string('original_name')->nullable();
             $table->string('mime_type')->nullable();
@@ -40,7 +41,9 @@ return new class extends Migration
             $table->timestamp('last_chunk_at')->nullable();
             $table->timestamps();
 
-            $table->index(['workspace_id', 'identifier'], 'upload_sessions_workspace_identifier_idx');
+            $table->index(['workspace_id', 'identifier', 'status'], 'upload_sessions_workspace_identifier_status_idx');
+            $table->index(['workspace_id', 'status', 'updated_at', 'id'], 'upload_sessions_workspace_status_updated_idx');
+            $table->index(['workspace_id', 'status', 'session_expires_at', 'id'], 'upload_sessions_workspace_status_expiry_idx');
         });
 
         Schema::create('upload_session_chunks', function (Blueprint $table): void {

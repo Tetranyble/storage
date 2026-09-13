@@ -7,21 +7,23 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery;
 use RuntimeException;
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\FileSystem\MediaService;
-use Tetranyble\Storage\Domain\FileSystem\StorageOrphanService;
-use Tetranyble\Storage\Domain\Media\MediaDeletionService;
-use Tetranyble\Storage\Domain\Media\MediaLibraryService;
-use Tetranyble\Storage\Domain\Media\MediaRelocationService;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\StorageOrphan;
-use Tetranyble\Storage\Models\User;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageOrphanService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaDeletionService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaRelocationService;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\Persistence\Eloquent\Models\StorageOrphan;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Http\UploadedFile;
@@ -228,7 +230,7 @@ class StorageLifecycleConsistencyTest extends PackageTestCase
             $this->app->make(MediaService::class)->attachExistingMediaToModel(
                 $media,
                 $loan,
-                MediaPurpose::BANK_STATEMENT,
+                MediaPurpose::DOCUMENT,
             );
             $this->fail('The forced attach persistence failure should have escaped.');
         } catch (RuntimeException $exception) {
@@ -286,12 +288,12 @@ class StorageLifecycleConsistencyTest extends PackageTestCase
         $this->assertSame(100, (int) $workspace->fresh()->storage_used_bytes);
     }
 
-    public function test_folder_copy_reserves_quota_and_owns_independent_original_and_thumbnail_objects(): void
+    public function test_folder_copy_reserves_only_source_bytes_and_regenerates_derivatives_independently(): void
     {
         Storage::fake('public');
         $workspace = Workspace::create([
             'name' => 'Folder copy lifecycle',
-            'storage_used_bytes' => 55,
+            'storage_used_bytes' => 60,
         ]);
         $owner = User::create([
             'workspace_id' => $workspace->id,
@@ -307,11 +309,10 @@ class StorageLifecycleConsistencyTest extends PackageTestCase
             'folder_id' => $child->id,
             'disk' => Disk::PUBLIC,
             'path' => 'workspaces/'.$workspace->uuid.'/manuals/pdf/guide.pdf',
-            'thumbnail_path' => 'workspaces/'.$workspace->uuid.'/manuals/pdf/.thumbnails/guide.jpg',
             'original_name' => 'guide.pdf',
             'mime_type' => 'application/pdf',
             'size' => 55,
-            'use' => MediaPurpose::GENERAL,
+            'use' => MediaPurpose::DOCUMENT,
             'access_scope' => AccessScope::WORKSPACE,
         ]);
         $media->forceFill([
@@ -319,28 +320,38 @@ class StorageLifecycleConsistencyTest extends PackageTestCase
             'version_group_uuid' => $group,
             'version_number' => 1,
         ])->save();
+        $derivative = MediaDerivative::create([
+            'media_id' => $media->id,
+            'workspace_id' => $workspace->id,
+            'kind' => MediaDerivativeKind::THUMBNAIL,
+            'variant' => 'default',
+            'format' => 'jpeg',
+            'mime_type' => 'image/jpeg',
+            'disk' => Disk::PUBLIC,
+            'path' => '.derivatives/workspace-'.$workspace->id.'/'.$media->uuid.'/thumbnail-default.jpg',
+            'size' => 5,
+            'width' => 10,
+            'height' => 10,
+            'sha256' => hash('sha256', 'thumb'),
+            'is_primary' => true,
+            'generated_at' => now(),
+        ]);
         Storage::disk('public')->put($media->path, 'guide');
-        Storage::disk('public')->put($media->thumbnail_path, 'thumb');
+        Storage::disk('public')->put($derivative->path, 'thumb');
 
         $copy = $library->copyFolder($folder, $root, $owner, 'Manuals Copy');
         $copiedChild = Folder::query()->where('parent_id', $copy->id)->firstOrFail();
         $copiedMedia = Media::query()->where('folder_id', $copiedChild->id)->firstOrFail();
 
-        $this->assertSame(110, (int) $workspace->fresh()->storage_used_bytes);
+        $this->assertSame(115, (int) $workspace->fresh()->storage_used_bytes);
         $this->assertNotSame($media->version_group_uuid, $copiedMedia->version_group_uuid);
         $this->assertSame(1, $copiedMedia->version_number);
         $this->assertNull($copiedMedia->previous_version_id);
-        $this->assertSame(
-            'workspaces/'.$workspace->uuid.'/manuals-copy/pdf/guide.pdf',
-            $copiedMedia->path,
-        );
-        $this->assertSame(
-            'workspaces/'.$workspace->uuid.'/manuals-copy/pdf/.thumbnails/guide.jpg',
-            $copiedMedia->thumbnail_path,
-        );
+        $this->assertSame('workspaces/'.$workspace->uuid.'/manuals-copy/pdf/guide.pdf', $copiedMedia->path);
+        $this->assertCount(0, $copiedMedia->derivatives);
+        $this->assertCount(1, $media->fresh()->derivatives);
         Storage::disk('public')->assertExists($media->path);
-        Storage::disk('public')->assertExists($media->thumbnail_path);
+        Storage::disk('public')->assertExists($derivative->path);
         Storage::disk('public')->assertExists($copiedMedia->path);
-        Storage::disk('public')->assertExists($copiedMedia->thumbnail_path);
     }
 }

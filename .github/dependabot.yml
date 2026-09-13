@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Africa/Lagos
+    open-pull-requests-limit: 5
+    groups:
+      laravel-tooling:
+        patterns:
+          - 'illuminate/*'
+          - 'orchestra/testbench'
+          - 'larastan/larastan'
+          - 'laravel/pint'
+      provider-sdks:
+        patterns:
+          - 'google/apiclient'
+          - 'spatie/dropbox-api'
+          - 'league/flysystem-*'
+          - 'azure-oss/*'
+          - 'cloudinary/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:30'
+      timezone: Africa/Lagos
+    open-pull-requests-limit: 5

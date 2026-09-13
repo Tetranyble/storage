@@ -2,19 +2,27 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Domain\CloudDrive\ConnectedDriveService;
-use Tetranyble\Storage\Domain\CloudDrive\DownloadService;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\CloudProvider;
-use Tetranyble\Storage\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Models\ConnectedDrive;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AuthenticationRequiredException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
+use Tetranyble\Storage\Modules\Shared\Infrastructure\Persistence\Eloquent\EloquentResourceState;
+use Tetranyble\Storage\Modules\Trust\Domain\Exceptions\MediaQuarantinedException;
+use Tetranyble\Storage\Modules\Processing\Domain\Enums\MediaProcessingStatus;
+use Tetranyble\Storage\Modules\Trust\Domain\Enums\VirusScanStatus;
+use Tetranyble\Storage\Modules\Trust\Infrastructure\ConfiguredMediaDeliveryPolicy;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 use Mockery;
@@ -57,18 +65,42 @@ class DownloadServiceTest extends PackageTestCase
             ->once()
             ->andReturn('%PDF bytes');
 
-        $response = $this->service->downloadMedia($this->workspace, $media, $this->actor);
+        $payload = $this->service->downloadMedia($this->workspace, $media, $this->actor);
 
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('report.pdf', $response->headers->get('Content-Disposition'));
-        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertSame('report.pdf', $payload->filename);
+        $this->assertSame('application/pdf', $payload->mime);
+        $this->assertSame('%PDF bytes', $payload->binary);
+    }
+
+
+    public function test_download_blocks_quarantined_media_before_reading_storage(): void
+    {
+        config()->set('tetranyble-storage.trust.virus_scanning.enabled', true);
+        config()->set('tetranyble-storage.trust.quarantine_until_clean', true);
+
+        $media = $this->mediaRecord('pending.pdf', AccessScope::WORKSPACE, 'application/pdf');
+        $media->forceFill([
+            'virus_scan_status' => VirusScanStatus::PENDING,
+            'processing_status' => MediaProcessingStatus::QUEUED,
+        ])->save();
+
+        $service = new DownloadService(
+            $this->files,
+            $this->drives,
+            $this->access,
+            new MediaDeliveryGuard(new ConfiguredMediaDeliveryPolicy(), new EloquentResourceState()),
+        );
+        $this->files->shouldNotReceive('get');
+
+        $this->expectException(MediaQuarantinedException::class);
+        $service->downloadMedia($this->workspace, $media, $this->actor);
     }
 
     public function test_download_workspace_media_without_actor_aborts_401(): void
     {
         $media = $this->mediaRecord('doc.pdf', AccessScope::WORKSPACE);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(AuthenticationRequiredException::class);
 
         $this->service->downloadMedia($this->workspace, $media, null);
     }
@@ -83,9 +115,9 @@ class DownloadServiceTest extends PackageTestCase
 
         $this->files->shouldReceive('get')->andReturn('bytes');
 
-        $response = $this->service->downloadMedia($this->workspace, $media, $this->actor);
+        $payload = $this->service->downloadMedia($this->workspace, $media, $this->actor);
 
-        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('bytes', $payload->binary);
     }
 
     public function test_download_wrong_workspace_aborts_404(): void
@@ -93,7 +125,7 @@ class DownloadServiceTest extends PackageTestCase
         $otherWorkspace = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $media       = $this->mediaRecord('file.pdf', AccessScope::WORKSPACE, 'application/pdf', $otherWorkspace);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(ResourceNotFoundException::class);
 
         $this->service->downloadMedia($this->workspace, $media, $this->actor);
     }
@@ -113,8 +145,8 @@ class DownloadServiceTest extends PackageTestCase
 
         $this->assertSame(2, $result['zipped']);
         $this->assertSame(0, $result['skipped']);
-        $this->assertSame(200, $result['response']->getStatusCode());
-        $this->assertStringContainsString('bundle.zip', $result['response']->headers->get('Content-Disposition'));
+        $this->assertSame('bundle.zip', $result['download']->filename);
+        $this->assertSame('application/zip', $result['download']->mime);
     }
 
     public function test_zip_media_skips_restricted_items_without_permission(): void
@@ -181,18 +213,18 @@ class DownloadServiceTest extends PackageTestCase
     public function test_download_from_drive_returns_streamed_response(): void
     {
         $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter::class);
+        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
         $meta    = new CloudFile('f1', 'photo.jpg', false, 512, 'image/jpeg', null, null, null);
 
         $this->drives->shouldReceive('adapterFor')->with($drive)->andReturn($adapter);
         $adapter->shouldReceive('getMetadata')->with('f1')->andReturn($meta);
         $adapter->shouldReceive('getFileBinary')->with('f1')->andReturn('jpeg bytes');
 
-        $response = $this->service->downloadFromDrive($this->workspace, $drive, 'f1');
+        $payload = $this->service->downloadFromDrive($this->workspace, $drive, 'f1');
 
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('image/jpeg', $response->headers->get('Content-Type'));
-        $this->assertStringContainsString('photo.jpg', $response->headers->get('Content-Disposition'));
+        $this->assertSame('image/jpeg', $payload->mime);
+        $this->assertSame('photo.jpg', $payload->filename);
+        $this->assertSame('jpeg bytes', $payload->binary);
     }
 
     // ---------------------------------------------------------------
@@ -202,7 +234,7 @@ class DownloadServiceTest extends PackageTestCase
     public function test_zip_from_drive_flat_files(): void
     {
         $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter::class);
+        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
 
         $f1 = new CloudFile('id1', 'a.txt', false, 10, 'text/plain', null, null, null);
         $f2 = new CloudFile('id2', 'b.txt', false, 10, 'text/plain', null, null, null);
@@ -217,13 +249,13 @@ class DownloadServiceTest extends PackageTestCase
 
         $this->assertSame(2, $result['zipped']);
         $this->assertSame(0, $result['skipped']);
-        $this->assertSame(200, $result['response']->getStatusCode());
+        $this->assertSame('application/zip', $result['download']->mime);
     }
 
     public function test_zip_from_drive_recurses_into_folders(): void
     {
         $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter::class);
+        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
 
         $folder  = new CloudFile('dir1', 'Docs', true, null, null, null, null, null);
         $file    = new CloudFile('fid1', 'readme.md', false, 100, 'text/markdown', null, null, null);
@@ -243,7 +275,7 @@ class DownloadServiceTest extends PackageTestCase
     public function test_zip_from_drive_skips_failed_items(): void
     {
         $drive   = $this->drive();
-        $adapter = Mockery::mock(\Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter::class);
+        $adapter = Mockery::mock(\Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter::class);
 
         $this->drives->shouldReceive('adapterFor')->andReturn($adapter);
         $adapter->shouldReceive('getMetadata')->andThrow(new RuntimeException('not found'));

@@ -27,6 +27,14 @@ return new class extends Migration
                 'collaboratable_id',
                 'user_id',
             ], 'collaborator_grants_unique_resource_user');
+            $table->index(
+                ['workspace_id', 'user_id', 'collaboratable_type', 'collaboratable_id'],
+                'collaborator_grants_workspace_user_resource_idx',
+            );
+            $table->index(
+                ['workspace_id', 'user_id', 'collaboratable_type', 'collaboratable_id', 'created_at'],
+                'collaborator_grants_workspace_user_resource_created_idx',
+            );
         });
     }
 

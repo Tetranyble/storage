@@ -3,13 +3,14 @@
 namespace Tetranyble\Storage\Tests\Unit;
 
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\HttpException;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaShareService;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\MediaShare;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadLimitReachedException;
+use Tetranyble\Storage\Modules\Sharing\Domain\Exceptions\ShareDownloadNotAllowedException;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Application\MediaShareService;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaShareConcurrencyTest extends PackageTestCase
@@ -42,8 +43,8 @@ class MediaShareConcurrencyTest extends PackageTestCase
         try {
             $service->consumeDownloadAccess($requestB);
             $this->fail('A second stale request must not exceed max_downloads.');
-        } catch (HttpException $exception) {
-            $this->assertSame(429, $exception->getStatusCode());
+        } catch (ShareDownloadLimitReachedException) {
+            $this->addToAssertionCount(1);
         }
 
         $this->assertSame(1, $share->fresh()->downloads_count);
@@ -74,8 +75,8 @@ class MediaShareConcurrencyTest extends PackageTestCase
         try {
             $this->app->make(MediaShareService::class)->consumeDownloadAccess($staleRequest);
             $this->fail('A stale download permission must not survive a concurrent downgrade to view-only.');
-        } catch (HttpException $exception) {
-            $this->assertSame(403, $exception->getStatusCode());
+        } catch (ShareDownloadNotAllowedException) {
+            $this->addToAssertionCount(1);
         }
 
         $this->assertSame(0, $share->fresh()->downloads_count);
@@ -103,8 +104,8 @@ class MediaShareConcurrencyTest extends PackageTestCase
         try {
             $this->app->make(MediaShareService::class)->consumeDownloadAccess($share);
             $this->fail('View-only shares must not allow download consumption.');
-        } catch (HttpException $exception) {
-            $this->assertSame(403, $exception->getStatusCode());
+        } catch (ShareDownloadNotAllowedException) {
+            $this->addToAssertionCount(1);
         }
 
         $this->assertSame(0, $share->fresh()->downloads_count);

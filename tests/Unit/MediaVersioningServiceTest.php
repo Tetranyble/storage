@@ -2,12 +2,12 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaVersioningService;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Enums\MediaStatus;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
@@ -324,9 +324,9 @@ class MediaVersioningServiceTest extends PackageTestCase
         return $media->fresh();
     }
 
-    private function makeUser(Workspace $workspace): \Tetranyble\Storage\Models\User
+    private function makeUser(Workspace $workspace): \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User
     {
-        return \Tetranyble\Storage\Models\User::create([
+        return \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::create([
             'name'      => 'Actor',
             'email'     => 'actor'.Str::random(4).'@example.com',
             'password'  => bcrypt('secret'),

@@ -1,0 +1,381 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality / PHP 8.5 / Laravel 13
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json, sqlite3, gd
+
+      - name: Select Laravel 13 Testbench
+        run: composer require --dev "orchestra/testbench:^11.0" --no-update
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Validate package metadata
+        run: composer validate --strict
+
+      - name: Production gate
+        run: composer run production:gate
+
+      - name: Dependency audit
+        run: composer audit --locked
+
+  compatibility:
+    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.2'
+            laravel: '12'
+            testbench: '^10.0'
+          - php: '8.3'
+            laravel: '12'
+            testbench: '^10.0'
+          - php: '8.4'
+            laravel: '12'
+            testbench: '^10.0'
+          - php: '8.5'
+            laravel: '12'
+            testbench: '^10.0'
+          - php: '8.3'
+            laravel: '13'
+            testbench: '^11.0'
+          - php: '8.4'
+            laravel: '13'
+            testbench: '^11.0'
+          - php: '8.5'
+            laravel: '13'
+            testbench: '^11.0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json, sqlite3, gd
+
+      - name: Select framework test harness
+        run: composer require --dev "orchestra/testbench:${{ matrix.testbench }}" --no-update
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Architecture gate
+        run: composer run architecture
+
+      - name: Run tests
+        run: composer test
+
+  database-integration:
+    name: Database / ${{ matrix.database }} / Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: PostgreSQL
+            connection: pgsql
+            port: '5432'
+            username: postgres
+            password: postgres
+            laravel: '12'
+            testbench: '^10.0'
+          - database: MySQL
+            connection: mysql
+            port: '3306'
+            username: root
+            password: root
+            laravel: '12'
+            testbench: '^10.0'
+          - database: PostgreSQL
+            connection: pgsql
+            port: '5432'
+            username: postgres
+            password: postgres
+            laravel: '13'
+            testbench: '^11.0'
+          - database: MySQL
+            connection: mysql
+            port: '3306'
+            username: root
+            password: root
+            laravel: '13'
+            testbench: '^11.0'
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: storage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d storage_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: storage_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      STORAGE_TEST_DB_CONNECTION: ${{ matrix.connection }}
+      STORAGE_TEST_DB_HOST: 127.0.0.1
+      STORAGE_TEST_DB_PORT: ${{ matrix.port }}
+      STORAGE_TEST_DB_DATABASE: storage_test
+      STORAGE_TEST_DB_USERNAME: ${{ matrix.username }}
+      STORAGE_TEST_DB_PASSWORD: ${{ matrix.password }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json, gd, pcntl, pdo_pgsql, pdo_mysql
+
+      - name: Select Laravel ${{ matrix.laravel }} Testbench
+        run: composer require --dev "orchestra/testbench:${{ matrix.testbench }}" --no-update
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Architecture gate
+        run: composer run architecture
+
+      - name: Run full suite on real database
+        run: composer test
+
+  query-performance:
+    name: Query performance / ${{ matrix.database }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: PostgreSQL
+            connection: pgsql
+            port: '5432'
+            username: postgres
+            password: postgres
+          - database: MySQL
+            connection: mysql
+            port: '3306'
+            username: root
+            password: root
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: storage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d storage_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: storage_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      STORAGE_TEST_DB_CONNECTION: ${{ matrix.connection }}
+      STORAGE_TEST_DB_HOST: 127.0.0.1
+      STORAGE_TEST_DB_PORT: ${{ matrix.port }}
+      STORAGE_TEST_DB_DATABASE: storage_test
+      STORAGE_TEST_DB_USERNAME: ${{ matrix.username }}
+      STORAGE_TEST_DB_PASSWORD: ${{ matrix.password }}
+      STORAGE_RUN_QUERY_BENCHMARKS: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json, gd, pdo_pgsql, pdo_mysql
+
+      - name: Select latest supported Laravel Testbench
+        run: composer require --dev "orchestra/testbench:^11.0" --no-update
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Run large-workspace query budgets and N+1 checks
+        run: composer benchmark:queries
+
+  s3-provider-contract:
+    name: S3 provider contract / MinIO Community
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STORAGE_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      STORAGE_TEST_S3_BUCKET: tetranyble-storage-test
+      STORAGE_TEST_S3_KEY: minioadmin
+      STORAGE_TEST_S3_SECRET: minioadmin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+
+      - name: Build current MinIO Community server from source
+        run: |
+          mkdir -p "$HOME/bin" /tmp/minio-data
+          GOBIN="$HOME/bin" go install github.com/minio/minio@latest
+
+      - name: Start MinIO
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        run: |
+          nohup "$HOME/bin/minio" server /tmp/minio-data --address ':9000' >/tmp/minio.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/minio.log
+          exit 1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json, sqlite3, gd
+
+      - name: Select Laravel 12 Testbench
+        run: composer require --dev "orchestra/testbench:^10.0" --no-update
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Run S3-compatible provider contract suite
+        run: vendor/bin/phpunit tests/Integration/S3ProviderContractTest.php
+
+      - name: Print MinIO log on failure
+        if: failure()
+        run: cat /tmp/minio.log || true
+
+
+  required-ci:
+    name: Required CI
+    if: ${{ always() }}
+    needs:
+      - quality
+      - compatibility
+      - database-integration
+      - query-performance
+      - s3-provider-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every release-critical CI lane
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          DATABASE_RESULT: ${{ needs.database-integration.result }}
+          QUERY_RESULT: ${{ needs.query-performance.result }}
+          S3_RESULT: ${{ needs.s3-provider-contract.result }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            "quality=${QUALITY_RESULT}" \
+            "compatibility=${COMPATIBILITY_RESULT}" \
+            "database=${DATABASE_RESULT}" \
+            "query-performance=${QUERY_RESULT}" \
+            "s3-provider=${S3_RESULT}"
+
+          for result in \
+            "$QUALITY_RESULT" \
+            "$COMPATIBILITY_RESULT" \
+            "$DATABASE_RESULT" \
+            "$QUERY_RESULT" \
+            "$S3_RESULT"; do
+            if [ "$result" != 'success' ]; then
+              echo "A required CI lane did not succeed." >&2
+              exit 1
+            fi
+          done

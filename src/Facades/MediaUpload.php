@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\FileSystem\Contracts\MediaUploader;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Facade;
@@ -30,12 +30,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Database\Eloquent\Collection revisionsFor(Media $media)
  * @method static \Illuminate\Database\Eloquent\Collection revisionActivityFor(Media $media)
  *
- * @see \Tetranyble\Storage\Domain\FileSystem\MediaService
+ * @see \Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService
  */
 class MediaUpload extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return MediaUploader::class;
+        return MediaService::class;
     }
 }

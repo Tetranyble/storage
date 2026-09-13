@@ -2,24 +2,25 @@
 
 namespace Tetranyble\Storage\Http\Controllers;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\CloudDrive\ConnectedDriveService;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaStorageTransferService;
-use Tetranyble\Storage\Models\ConnectedDrive;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\Media\MediaStorageTransferService;
 
 class MediaTransferController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         private readonly MediaStorageTransferService $mediaTransfers,
         private readonly ConnectedDriveService $connectedDrives,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     public function copyMedia(Request $request, string $media): JsonResponse
@@ -113,14 +114,6 @@ class MediaTransferController extends StorageController
             'destination_folder_id' => ['nullable', 'string', 'max:1024'],
             'name' => ['nullable', 'string', 'max:255'],
         ]);
-    }
-
-    private function drive(Model $workspace, string|int $key): ConnectedDrive
-    {
-        return ConnectedDrive::query()
-            ->where('workspace_id', $workspace->getKey())
-            ->where(fn ($query) => $query->whereKey($key)->orWhere('uuid', $key))
-            ->firstOrFail();
     }
 
     private function drivePayload(ConnectedDrive $drive): array

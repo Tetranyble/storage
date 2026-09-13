@@ -1,0 +1,134 @@
+{
+    "description": "Step 2 module-edge ratchet. These are transitional cross-capability edges discovered after verticalization. Existing edges may be removed, but new edges require an explicit architectural decision and baseline review.",
+    "allowed_edges": {
+        "Access": [
+            "Folder",
+            "Media",
+            "Observability",
+            "Shared",
+            "Storage"
+        ],
+        "Activity": [
+            "Media",
+            "Shared"
+        ],
+        "CloudDrive": [
+            "Access",
+            "Folder",
+            "Media",
+            "Observability",
+            "Processing",
+            "Shared",
+            "Storage",
+            "Trust"
+        ],
+        "DirectUpload": [
+            "Access",
+            "Media",
+            "Observability",
+            "Shared",
+            "Storage",
+            "Upload"
+        ],
+        "Download": [
+            "Access",
+            "CloudDrive",
+            "Media",
+            "Processing",
+            "Shared",
+            "Storage"
+        ],
+        "Folder": [
+            "Access",
+            "Activity",
+            "Media",
+            "Shared",
+            "Sharing"
+        ],
+        "Health": [
+            "CloudDrive",
+            "DirectUpload",
+            "Media",
+            "Observability",
+            "Processing",
+            "Storage",
+            "Upload"
+        ],
+        "Media": [
+            "Access",
+            "Activity",
+            "Folder",
+            "Observability",
+            "Processing",
+            "Remote",
+            "Shared",
+            "Sharing",
+            "Storage",
+            "Trust",
+            "Upload",
+            "Versioning"
+        ],
+        "Processing": [
+            "Media",
+            "Observability",
+            "Shared",
+            "Storage",
+            "Trust"
+        ],
+        "Remote": [
+            "Access",
+            "Media",
+            "Storage"
+        ],
+        "Sharing": [
+            "Access",
+            "Activity",
+            "Folder",
+            "Media",
+            "Shared"
+        ],
+        "Storage": [
+            "DirectUpload",
+            "Media",
+            "Observability",
+            "Processing",
+            "Quota",
+            "Shared",
+            "Upload"
+        ],
+        "Transfer": [
+            "Access",
+            "Storage"
+        ],
+        "Trust": [
+            "Processing",
+            "Storage"
+        ],
+        "Upload": [
+            "Access",
+            "Media",
+            "Observability",
+            "Shared",
+            "Storage",
+            "Trust"
+        ],
+        "Versioning": [
+            "Activity",
+            "Media",
+            "Shared"
+        ],
+        "Workspace": [
+            "Access",
+            "Activity",
+            "Folder",
+            "Media",
+            "Shared",
+            "Sharing",
+            "Storage",
+            "Versioning"
+        ],
+        "Observability": [],
+        "Quota": [],
+        "Shared": []
+    }
+}

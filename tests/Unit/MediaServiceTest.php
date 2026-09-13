@@ -2,16 +2,19 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\FileSystem\Enums\UploadStrategy;
-use Tetranyble\Storage\Domain\FileSystem\Exceptions\RemoteDownloadException;
-use Tetranyble\Storage\Domain\FileSystem\Exceptions\StorageQuotaExceededException;
-use Tetranyble\Storage\Domain\FileSystem\MediaService;
-use Tetranyble\Storage\Enums\MediaRevisionEventType;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Upload\Domain\Enums\UploadStrategy;
+use Tetranyble\Storage\Modules\Remote\Domain\Exceptions\RemoteDownloadException;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaRevisionEventType;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\Models\DummyMediableModel;
 use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
 use Tetranyble\Storage\Tests\PackageTestCase;
@@ -54,6 +57,31 @@ class MediaServiceTest extends PackageTestCase
         $this->assertSame(100, $media->height);
 
         Storage::disk('public')->assertExists($media->path);
+    }
+
+    public function test_media_service_rejects_oversized_upload_without_application_or_http_guard(): void
+    {
+        config()->set('tetranyble-storage.uploads.max_size', 1024);
+
+        $service = $this->app->make(MediaService::class);
+        $workspace = Workspace::create(['name' => 'Workspace']);
+        $file = UploadedFile::fake()->create('too-large.pdf', 2, 'application/pdf');
+
+        try {
+            $service->uploadStandalone(
+                $file,
+                directory: 'documents',
+                purpose: MediaPurpose::GENERAL,
+                disk: Disk::PUBLIC,
+                workspaceId: $workspace->id,
+            );
+            $this->fail('Direct MediaService upload should enforce the configured maximum size.');
+        } catch (InvalidStorageOperationException $exception) {
+            $this->assertStringContainsString('configured maximum size', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Media::query()->count());
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_attach_external_for_youtube_sets_youtube_disk_and_preserves_url(): void
@@ -111,29 +139,80 @@ class MediaServiceTest extends PackageTestCase
     }
 
 
-    public function test_delete_media_item_removes_the_original_and_generated_thumbnail(): void
+    public function test_delete_media_item_removes_original_and_all_first_class_derivatives(): void
     {
         $service = $this->app->make(MediaService::class);
-        $workspace = Workspace::create(['name' => 'Workspace']);
+        $workspace = Workspace::create(['name' => 'Workspace', 'storage_used_bytes' => 109]);
         $media = Media::create([
             'workspace_id' => $workspace->id,
             'disk' => Disk::PUBLIC,
             'path' => 'media/original.jpg',
-            'thumbnail_path' => 'media/.thumbnails/original.jpg',
             'mime_type' => 'image/jpeg',
             'size' => 100,
-            'use' => MediaPurpose::GENERAL,
+            'use' => MediaPurpose::IMAGE,
             'current' => true,
+        ]);
+        $derivative = MediaDerivative::create([
+            'media_id' => $media->id,
+            'workspace_id' => $workspace->id,
+            'kind' => MediaDerivativeKind::THUMBNAIL,
+            'variant' => 'default',
+            'format' => 'jpeg',
+            'mime_type' => 'image/jpeg',
+            'disk' => Disk::PUBLIC,
+            'path' => '.derivatives/workspace-'.$workspace->id.'/'.$media->uuid.'/thumbnail-default.jpg',
+            'size' => 9,
+            'sha256' => hash('sha256', 'thumbnail'),
+            'is_primary' => true,
+            'generated_at' => now(),
         ]);
 
         Storage::disk('public')->put($media->path, 'original');
-        Storage::disk('public')->put($media->thumbnail_path, 'thumbnail');
+        Storage::disk('public')->put($derivative->path, 'thumbnail');
 
         $service->deleteMediaItem($media);
 
         Storage::disk('public')->assertMissing('media/original.jpg');
-        Storage::disk('public')->assertMissing('media/.thumbnails/original.jpg');
+        Storage::disk('public')->assertMissing($derivative->path);
         $this->assertDatabaseMissing('media', ['id' => $media->id]);
+        $this->assertDatabaseMissing('media_derivatives', ['id' => $derivative->id]);
+        $this->assertSame(0, (int) $workspace->fresh()->storage_used_bytes);
+    }
+
+    public function test_remote_upload_caller_override_cannot_widen_global_upload_limit(): void
+    {
+        config()->set('tetranyble-storage.uploads.max_size', 512);
+        config()->set('tetranyble-storage.remote.max_size', 4096);
+
+        $service = $this->app->make(MediaService::class);
+
+        Http::fake([
+            'https://example.com/global-limit.bin' => Http::response(
+                str_repeat('A', 1024),
+                200,
+                ['Content-Length' => 1024, 'Content-Type' => 'application/octet-stream']
+            ),
+        ]);
+
+        try {
+            $service->uploadStandaloneFromUrl(
+                'https://example.com/global-limit.bin',
+                MediaPurpose::GENERAL,
+                Disk::PUBLIC,
+                'Global limit',
+                'Test',
+                directory: 'remote',
+                workspaceId: null,
+                maxSizeBytes: 2048,
+            );
+            $this->fail('A per-call remote limit must not widen the package-wide upload ceiling.');
+        } catch (RemoteDownloadException $exception) {
+            $this->assertSame(1024, $exception->size);
+            $this->assertStringContainsString('max 512 bytes', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Media::query()->count());
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_upload_standalone_from_url_respects_max_size_override(): void
@@ -196,7 +275,7 @@ class MediaServiceTest extends PackageTestCase
         $file = UploadedFile::fake()->create('payslip.pdf', 50, 'application/pdf');
         $service = $this->app->make(MediaService::class);
 
-        $media = $service->uploadFor($loan, $file, 'Payslip', '', 'media', MediaPurpose::IDENTITY_DOCUMENT_FRONT);
+        $media = $service->uploadFor($loan, $file, 'Payslip', '', 'media', MediaPurpose::DOCUMENT);
 
         $this->assertNotNull($media->id);
         $this->assertSame($workspace->id, $media->workspace_id);
@@ -228,7 +307,7 @@ class MediaServiceTest extends PackageTestCase
         $media = $service->uploadUploadedFile($file, MediaUploadOptions::forStandalone(
             workspaceId: $workspace->id,
             userId: 123,
-            purpose: MediaPurpose::IMPORT_SOURCE,
+            purpose: MediaPurpose::IMPORT,
             directory: 'imports',
             module: 'payslip',
             temporary: false,
@@ -253,7 +332,7 @@ class MediaServiceTest extends PackageTestCase
 
         $media = $service->finalizeChunkedUpload($file, MediaUploadOptions::forStandalone(
             workspaceId: $workspace->id,
-            purpose: MediaPurpose::BANK_STATEMENT,
+            purpose: MediaPurpose::DOCUMENT,
             directory: 'statements',
             module: 'statement',
             temporary: false,
@@ -274,7 +353,7 @@ class MediaServiceTest extends PackageTestCase
         $media = $service->uploadStandalone($file, '', '', workspaceId: $workspace->id);
         $oldPath = $media->path;
 
-        $attached = $service->attachExistingMediaToModel($media, $loan, MediaPurpose::BANK_STATEMENT);
+        $attached = $service->attachExistingMediaToModel($media, $loan, MediaPurpose::DOCUMENT);
 
         $this->assertSame($media->id, $attached->id);
         $this->assertSame($loan->id, $attached->mediable_id);
@@ -295,7 +374,7 @@ class MediaServiceTest extends PackageTestCase
             $loan,
             UploadedFile::fake()->create('statement-v1.pdf', 40, 'application/pdf'),
             directory: 'media',
-            purpose: MediaPurpose::BANK_STATEMENT,
+            purpose: MediaPurpose::DOCUMENT,
             disk: Disk::PRIVATE,
         );
 
@@ -303,7 +382,7 @@ class MediaServiceTest extends PackageTestCase
             $loan,
             UploadedFile::fake()->create('statement-v2.pdf', 45, 'application/pdf'),
             directory: 'media',
-            purpose: MediaPurpose::BANK_STATEMENT,
+            purpose: MediaPurpose::DOCUMENT,
             disk: Disk::PRIVATE,
             replaceExisting: true,
         );
@@ -407,7 +486,7 @@ class MediaServiceTest extends PackageTestCase
             $loan,
             UploadedFile::fake()->create('statement-v1.pdf', 40, 'application/pdf'),
             directory: 'media',
-            purpose: MediaPurpose::BANK_STATEMENT,
+            purpose: MediaPurpose::DOCUMENT,
             disk: Disk::PRIVATE,
         );
 
@@ -415,7 +494,7 @@ class MediaServiceTest extends PackageTestCase
             $loan,
             UploadedFile::fake()->create('statement-v2.pdf', 45, 'application/pdf'),
             directory: 'media',
-            purpose: MediaPurpose::BANK_STATEMENT,
+            purpose: MediaPurpose::DOCUMENT,
             disk: Disk::PRIVATE,
             replaceExisting: true,
         );

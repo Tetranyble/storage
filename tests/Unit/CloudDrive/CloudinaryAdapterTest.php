@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Domain\CloudDrive\Adapters\CloudinaryAdapter;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\CloudinaryAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Cloudinary\Api\Admin\AdminApi;
 use Cloudinary\Api\Upload\UploadApi;

@@ -19,6 +19,10 @@ return new class extends Migration
             $table->morphs('starable');
             $table->timestamps();
             $table->unique(['workspace_id', 'user_id', 'starable_type', 'starable_id'], 'resource_stars_unique_user_resource');
+            $table->index(
+                ['workspace_id', 'user_id', 'starable_type', 'starable_id', 'created_at'],
+                'resource_stars_workspace_user_resource_created_idx',
+            );
         });
     }
 

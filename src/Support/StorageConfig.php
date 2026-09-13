@@ -3,17 +3,70 @@
 namespace Tetranyble\Storage\Support;
 
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 use RuntimeException;
-use Tetranyble\Storage\Contracts\StorageUser;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
-use Tetranyble\Storage\Models\User;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 
 class StorageConfig
 {
+    public static function defaultDisk(): Disk
+    {
+        $configured = config('tetranyble-storage.default_disk') ?: config('filesystems.default', 'local');
+
+        return Disk::default(is_string($configured) ? $configured : null);
+    }
+
+    /**
+     * Package persistence columns use unsigned BIGINT identifiers for host
+     * workspace/user references. Reject UUID/string-key host models early
+     * instead of allowing truncation/casts to fail deep inside operations.
+     */
+    public static function assertHostModelKeyCompatibility(): void
+    {
+        foreach ([
+            'workspace' => self::workspaceModelClass(),
+            'user' => self::userModelClass(),
+        ] as $key => $modelClass) {
+            /** @var Model $model */
+            $model = new $modelClass();
+
+            if ($model->getKeyType() !== 'int') {
+                throw new LogicException(
+                    "The configured storage {$key} model [{$modelClass}] uses key type [{$model->getKeyType()}]. "
+                    .'Tetranyble Storage currently requires integer primary keys for host workspace and user models.'
+                );
+            }
+        }
+    }
+
     public static function workspaceModelClass(): string
     {
         return self::modelClass('workspace', Workspace::class);
+    }
+
+    /** @return class-string<Model> */
+    public static function folderModelClass(): string
+    {
+        return Folder::class;
+    }
+
+    /** @return class-string<Model> */
+    public static function mediaModelClass(): string
+    {
+        return Media::class;
+    }
+
+    /** @return class-string<Model> */
+    public static function connectedDriveModelClass(): string
+    {
+        return ConnectedDrive::class;
     }
 
     public static function userModelClass(): string

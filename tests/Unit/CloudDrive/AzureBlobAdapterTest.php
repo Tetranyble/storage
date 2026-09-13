@@ -3,8 +3,8 @@
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
 use Carbon\Carbon;
-use Tetranyble\Storage\Domain\CloudDrive\Adapters\AzureBlobAdapter;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\AzureBlobAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;

@@ -3,28 +3,33 @@
 namespace Tetranyble\Storage\Tests\Feature\Application;
 
 use Illuminate\Http\UploadedFile;
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\HttpException;
-use Tetranyble\Storage\Application\Media\CreateMediaRevision;
-use Tetranyble\Storage\Application\Media\DeleteMedia;
-use Tetranyble\Storage\Application\Media\MoveMedia;
-use Tetranyble\Storage\Application\Media\RenameMedia;
-use Tetranyble\Storage\Application\Media\RestoreMedia;
-use Tetranyble\Storage\Application\Media\TrashMedia;
-use Tetranyble\Storage\Application\Media\UpdateMedia;
-use Tetranyble\Storage\Application\Media\UploadMedia;
-use Tetranyble\Storage\Application\Uploads\StartResumableUpload;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\DTO\UploadSessionOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\UploadSession;
-use Tetranyble\Storage\Models\User;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
+use Tetranyble\Storage\Modules\Storage\Domain\Exceptions\InvalidStorageOperationException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Media\Application\CreateMediaRevision;
+use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
+use Tetranyble\Storage\Modules\Media\Application\MoveMedia;
+use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
+use Tetranyble\Storage\Modules\Media\Application\RestoreMedia;
+use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
+use Tetranyble\Storage\Modules\Media\Application\UpdateMedia;
+use Tetranyble\Storage\Modules\Media\Application\UploadMedia;
+use Tetranyble\Storage\Modules\Upload\Application\StartResumableUpload;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Upload\Application\DTO\UploadSessionOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaDerivativeKind;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Processing\Infrastructure\Persistence\Eloquent\Models\MediaDerivative;
+use Tetranyble\Storage\Modules\Upload\Infrastructure\Persistence\Eloquent\Models\UploadSession;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class CanonicalMediaUseCasesTest extends PackageTestCase
@@ -36,7 +41,7 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         $folder = $this->folder($workspace, $owner, AccessScope::RESTRICTED);
         $media = $this->media($workspace, $owner, $folder, AccessScope::RESTRICTED);
 
-        $this->expectException(HttpException::class);
+        $this->expectException(AccessDeniedException::class);
 
         $this->app->make(UpdateMedia::class)->handle(
             $workspace,
@@ -53,7 +58,7 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         $otherFolder = $this->folder($otherWorkspace, $otherOwner);
         $otherMedia = $this->media($otherWorkspace, $otherOwner, $otherFolder);
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ResourceNotFoundException::class);
 
         $this->app->make(UpdateMedia::class)->handle(
             $workspace,
@@ -96,11 +101,11 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         $viewer = $this->user($workspace, 'Viewer');
         $folder = $this->folder($workspace, $owner, AccessScope::RESTRICTED);
 
-        $this->expectException(HttpException::class);
+        $this->expectException(AccessDeniedException::class);
 
         $this->app->make(UploadMedia::class)->handle(
             $workspace,
-            UploadedFile::fake()->create('restricted.pdf', 2, 'application/pdf'),
+            LaravelIncomingFile::fromUploadedFile(UploadedFile::fake()->create('restricted.pdf', 2, 'application/pdf')),
             MediaUploadOptions::forStandalone(
                 workspaceId: $workspace->id,
                 userId: $viewer->id,
@@ -112,16 +117,53 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         );
     }
 
+    public function test_upload_use_case_enforces_configured_size_limit_without_http_validation(): void
+    {
+        Storage::fake('local');
+        config()->set('tetranyble-storage.uploads.max_size', 1024);
+        [$workspace, $owner] = $this->workspaceAndUser('Application Upload Size');
+        $folder = $this->folder($workspace, $owner);
+
+        $this->expectException(InvalidStorageOperationException::class);
+        $this->expectExceptionMessage('configured maximum size');
+
+        $this->app->make(UploadMedia::class)->handle(
+            $workspace,
+            LaravelIncomingFile::fromUploadedFile(UploadedFile::fake()->create('too-large.pdf', 2, 'application/pdf')),
+            MediaUploadOptions::forStandalone(
+                workspaceId: $workspace->id,
+                userId: $owner->id,
+                folderId: $folder->id,
+                disk: Disk::PRIVATE,
+                temporary: false,
+            ),
+            $owner,
+        );
+    }
+
     public function test_media_lifecycle_use_cases_trash_restore_and_permanently_delete_consistently(): void
     {
         Storage::fake('local');
         [$workspace, $owner] = $this->workspaceAndUser('Application Lifecycle');
         $folder = $this->folder($workspace, $owner);
         $media = $this->media($workspace, $owner, $folder);
-        $media->forceFill(['thumbnail_path' => 'workspace/thumbs/document.png'])->save();
-        $workspace->forceFill(['storage_used_bytes' => (int) $media->size])->save();
+        $derivative = MediaDerivative::create([
+            'media_id' => $media->id,
+            'workspace_id' => $workspace->id,
+            'kind' => MediaDerivativeKind::THUMBNAIL,
+            'variant' => 'default',
+            'format' => 'png',
+            'mime_type' => 'image/png',
+            'disk' => Disk::PRIVATE,
+            'path' => '.derivatives/workspace-'.$workspace->id.'/'.$media->uuid.'/thumbnail-default.png',
+            'size' => 5,
+            'sha256' => hash('sha256', 'thumb'),
+            'is_primary' => true,
+            'generated_at' => now(),
+        ]);
+        $workspace->forceFill(['storage_used_bytes' => (int) $media->size + 5])->save();
         Storage::disk('local')->put($media->path, 'body');
-        Storage::disk('local')->put($media->thumbnail_path, 'thumb');
+        Storage::disk('local')->put($derivative->path, 'thumb');
 
         $this->app->make(TrashMedia::class)->handle($workspace, $media, $owner);
         $this->assertTrue(Media::withTrashed()->findOrFail($media->id)->trashed());
@@ -141,7 +183,10 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
         );
 
         $this->assertDatabaseMissing('media', ['id' => $media->id]);
+        $this->assertDatabaseMissing('media_derivatives', ['id' => $derivative->id]);
         Storage::disk('local')->assertMissing($media->path);
+        Storage::disk('local')->assertMissing($derivative->path);
+        $this->assertSame(0, (int) $workspace->fresh()->storage_used_bytes);
         Storage::disk('local')->assertMissing('workspace/thumbs/document.png');
         $this->assertSame(0, (int) $workspace->fresh()->storage_used_bytes);
         $this->assertDatabaseHas('activities', [
@@ -258,14 +303,40 @@ class CanonicalMediaUseCasesTest extends PackageTestCase
                 $viewer,
             );
             $this->fail('Restricted resumable upload should have been denied.');
-        } catch (HttpException $exception) {
-            $this->assertSame(403, $exception->getStatusCode());
+        } catch (AccessDeniedException) {
+            $this->addToAssertionCount(1);
         }
 
         $this->assertDatabaseMissing('upload_sessions', [
             'workspace_id' => $workspace->id,
             'identifier' => 'use-case-restricted-session',
         ]);
+    }
+
+    public function test_start_resumable_upload_use_case_rejects_oversized_declared_session(): void
+    {
+        config()->set('tetranyble-storage.uploads.max_size', 100);
+        [$workspace, $owner] = $this->workspaceAndUser('Application Chunk Size');
+        $folder = $this->folder($workspace, $owner);
+
+        $this->expectException(InvalidStorageOperationException::class);
+        $this->expectExceptionMessage('configured maximum size');
+
+        $this->app->make(StartResumableUpload::class)->handle(
+            $workspace,
+            new UploadSessionOptions(
+                identifier: 'oversized-use-case-session',
+                upload: new MediaUploadOptions(
+                    workspaceId: $workspace->id,
+                    userId: $owner->id,
+                    folderId: $folder->id,
+                    originalName: 'records.csv',
+                ),
+                totalChunks: 1,
+                totalSize: 101,
+            ),
+            $owner,
+        );
     }
 
     public function test_start_resumable_upload_use_case_creates_actor_owned_session(): void

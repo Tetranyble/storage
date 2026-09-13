@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Domain\CloudDrive\Adapters\LocalAdapter;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Adapters\LocalAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Facades\Storage;
 

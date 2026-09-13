@@ -2,18 +2,23 @@
 
 namespace Tetranyble\Storage\Http\Controllers;
 
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\CloudDrive\DownloadService;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Download\Infrastructure\Application\DownloadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Tetranyble\Storage\Http\Responses\DownloadResponder;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 class DownloadController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         protected readonly DownloadService $downloads,
+        protected readonly DownloadResponder $responder,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     /**
@@ -26,7 +31,9 @@ class DownloadController extends StorageController
         $workspace = $this->workspace($request);
         $resolved = $this->media($workspace, $media);
 
-        return $this->downloads->downloadMedia($workspace, $resolved, $this->actor($request));
+        return $this->responder->response(
+            $this->downloads->downloadMedia($workspace, $resolved, $this->actor($request))
+        );
     }
 
     /**
@@ -49,7 +56,7 @@ class DownloadController extends StorageController
             ->map(function (string $key) use ($workspace) {
                 try {
                     return $this->media($workspace, $key);
-                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+                } catch (ResourceNotFoundException) {
                     return null;
                 }
             })
@@ -64,6 +71,6 @@ class DownloadController extends StorageController
             $request->input('name', 'download'),
         );
 
-        return $result['response'];
+        return $this->responder->response($result['download']);
     }
 }

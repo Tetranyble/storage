@@ -5,7 +5,7 @@ namespace Tetranyble\Storage\Tests\Feature;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Orchestra\Testbench\TestCase;
-use Tetranyble\Storage\Domain\FileSystem\Contracts\MediaUploader;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\MediaUploader;
 use Tetranyble\Storage\StorageServiceProvider;
 
 class RouteRegistrationTest extends TestCase

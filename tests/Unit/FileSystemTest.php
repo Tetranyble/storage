@@ -2,8 +2,8 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
 use Illuminate\Support\Facades\Storage;
 use Tetranyble\Storage\Tests\PackageTestCase;
 

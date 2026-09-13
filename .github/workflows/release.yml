@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version without the v prefix (example: 3.0.0 or 3.0.0-beta.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Publish the GitHub release as a prerelease'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tetranyble-storage-release
+  cancel-in-progress: false
+
+env:
+  PACKAGE_NAME: tetranyble/storage
+  PACKAGIST_PACKAGE_URL: https://packagist.org/packages/tetranyble/storage
+
+jobs:
+  ci:
+    name: Full release CI
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Tag, GitHub Release, Packagist verification
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Refuse releases from anything except main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Releases must be dispatched from the main branch." >&2
+          exit 1
+
+      - name: Checkout the exact tested commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer:v2
+          extensions: fileinfo, json
+
+      - name: Validate release version and changelog
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: php scripts/validate-release-version.php "$RELEASE_VERSION"
+
+      - name: Validate Composer metadata and source release gate
+        run: |
+          composer validate --strict
+          php scripts/check-release-readiness.php
+
+      - name: Ensure release tag does not already exist
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v${RELEASE_VERSION}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists." >&2
+            exit 1
+          fi
+
+      - name: Build deterministic source archives from the exact tested commit
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          PREFIX="tetranyble-storage-${RELEASE_VERSION}/"
+          mkdir -p dist
+          git archive --format=zip --prefix="$PREFIX" --output="dist/tetranyble-storage-${RELEASE_VERSION}.zip" "$GITHUB_SHA"
+          git archive --format=tar.gz --prefix="$PREFIX" --output="dist/tetranyble-storage-${RELEASE_VERSION}.tar.gz" "$GITHUB_SHA"
+          (cd dist && sha256sum "tetranyble-storage-${RELEASE_VERSION}.zip" "tetranyble-storage-${RELEASE_VERSION}.tar.gz" > SHA256SUMS)
+          unzip -t "dist/tetranyble-storage-${RELEASE_VERSION}.zip"
+
+      - name: Verify packaged Composer metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/tetranyble-release
+          unzip -q "dist/tetranyble-storage-${RELEASE_VERSION}.zip" -d /tmp/tetranyble-release
+          composer validate --strict "/tmp/tetranyble-release/tetranyble-storage-${RELEASE_VERSION}/composer.json"
+
+      - name: Create and push the immutable annotated release tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${RELEASE_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "Tetranyble Storage ${TAG}"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          TAG="v${RELEASE_VERSION}"
+          args=("$TAG" "dist/tetranyble-storage-${RELEASE_VERSION}.zip" "dist/tetranyble-storage-${RELEASE_VERSION}.tar.gz" "dist/SHA256SUMS" --verify-tag --title "Tetranyble Storage ${TAG}" --generate-notes)
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}"
+
+      - name: Verify Packagist indexed the exact tested release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: php scripts/verify-packagist-release.php "$RELEASE_VERSION" "$GITHUB_SHA"

@@ -1,39 +1,43 @@
 <?php
 
 namespace Tetranyble\Storage\Http\Controllers;
-
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use RuntimeException;
-use Tetranyble\Storage\Application\Media\DeleteMedia;
-use Tetranyble\Storage\Application\Media\MoveMedia;
-use Tetranyble\Storage\Application\Media\RenameMedia;
-use Tetranyble\Storage\Application\Media\RestoreMedia;
-use Tetranyble\Storage\Application\Media\TrashMedia;
-use Tetranyble\Storage\Application\Media\UploadMedia;
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
-use Tetranyble\Storage\Domain\Media\MediaLibraryService;
-use Tetranyble\Storage\Domain\Media\WorkspaceFileManagerService;
-use Tetranyble\Storage\Domain\Media\WorkspaceFileQueryService;
-
+use Tetranyble\Storage\Modules\Folder\Application\{CreateFolder, EmptyTrash};
+use Tetranyble\Storage\Modules\Media\Application\DeleteMedia;
+use Tetranyble\Storage\Modules\Media\Application\MoveMedia;
+use Tetranyble\Storage\Modules\Media\Application\RenameMedia;
+use Tetranyble\Storage\Modules\Media\Application\RestoreMedia;
+use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
+use Tetranyble\Storage\Modules\Media\Application\UploadMedia;
+use Tetranyble\Storage\Http\{Contracts\WorkspaceContext, Routing\WorkspaceRouteResolver};
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\MediaLibraryService;
+use Tetranyble\Storage\Modules\Sharing\Application\CreateMediaShare;
+use Tetranyble\Storage\Modules\Sharing\Application\RevokeMediaShare;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\WorkspaceReadModel;
+use Tetranyble\Storage\Modules\Workspace\Application\Queries\{ActivityWorkspace, BrowseWorkspace, RecentWorkspace, SearchWorkspace, TrashWorkspace};
 class MediaLibraryController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         protected readonly MediaLibraryService $library,
         protected readonly StorageService $storage,
-        protected readonly WorkspaceFileManagerService $manager,
-        protected readonly WorkspaceFileQueryService $queries,
+        protected readonly WorkspaceReadModel $queries,
         protected readonly UploadMedia $uploadMedia,
         protected readonly TrashMedia $trashMedia,
         protected readonly RestoreMedia $restoreMedia,
         protected readonly DeleteMedia $deleteMedia,
         protected readonly MoveMedia $moveMedia,
         protected readonly RenameMedia $renameMedia,
+        protected readonly CreateFolder $createFolder,
+        protected readonly EmptyTrash $emptyTrash,
+        protected readonly CreateMediaShare $createMediaShare,
+        protected readonly RevokeMediaShare $revokeMediaShare,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     public function index(Request $request): JsonResponse
@@ -47,7 +51,7 @@ class MediaLibraryController extends StorageController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
-        $payload = $this->queries->indexPayload(
+        $payload = $this->queries->browse(new BrowseWorkspace(
             workspace: $this->workspace($request),
             relativePath: (string) ($validated['path'] ?? ''),
             search: (string) ($validated['search'] ?? ''),
@@ -56,9 +60,64 @@ class MediaLibraryController extends StorageController
             sortDir: (string) ($validated['sort_dir'] ?? 'asc'),
             page: (int) ($validated['page'] ?? 1),
             perPage: (int) ($validated['per_page'] ?? 50),
-        );
+        ));
 
         return $this->success('Media library loaded.', $payload);
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'query' => ['required', 'string', 'max:191'],
+            'folder_cursor' => ['nullable', 'string', 'max:4096'],
+            'file_cursor' => ['nullable', 'string', 'max:4096'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'sort_by' => ['nullable', 'string', 'in:created_at,updated_at'],
+            'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
+        ]);
+
+        return $this->success('Search results loaded.', $this->queries->search(new SearchWorkspace(
+            workspace: $this->workspace($request),
+            query: (string) $validated['query'],
+            actor: $this->actor($request),
+            folderCursor: $validated['folder_cursor'] ?? null,
+            fileCursor: $validated['file_cursor'] ?? null,
+            perPage: (int) ($validated['per_page'] ?? 50),
+            sortBy: (string) ($validated['sort_by'] ?? 'updated_at'),
+            sortDir: (string) ($validated['sort_dir'] ?? 'desc'),
+        )));
+    }
+
+    public function recent(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'folder_cursor' => ['nullable', 'string', 'max:4096'],
+            'file_cursor' => ['nullable', 'string', 'max:4096'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ]);
+
+        return $this->success('Recent resources loaded.', $this->queries->recent(new RecentWorkspace(
+            workspace: $this->workspace($request),
+            actor: $this->actor($request),
+            folderCursor: $validated['folder_cursor'] ?? null,
+            fileCursor: $validated['file_cursor'] ?? null,
+            perPage: (int) ($validated['per_page'] ?? 25),
+        )));
+    }
+
+    public function activity(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cursor' => ['nullable', 'string', 'max:4096'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ]);
+
+        return $this->success('Activity loaded.', $this->queries->activity(new ActivityWorkspace(
+            workspace: $this->workspace($request),
+            actor: $this->actor($request),
+            cursor: $validated['cursor'] ?? null,
+            perPage: (int) ($validated['per_page'] ?? 50),
+        )));
     }
 
     public function usage(Request $request): JsonResponse
@@ -67,9 +126,9 @@ class MediaLibraryController extends StorageController
 
         return $this->success('Storage usage loaded.', [
             'usage' => [
-                'used_bytes' => $usage->usedBytes,
-                'quota_bytes' => $usage->quotaBytes,
-                'remaining_bytes' => $usage->remainingBytes(),
+                'used_bytes' => $usage->used->bytes,
+                'quota_bytes' => $usage->quota->bytes,
+                'remaining_bytes' => $usage->remaining()->bytes,
                 'percent' => $usage->percentage(),
                 'near_limit' => $usage->isNearLimit(),
             ],
@@ -85,18 +144,18 @@ class MediaLibraryController extends StorageController
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
-        return $this->success('Trash loaded.', $this->queries->trashPayload(
+        return $this->success('Trash loaded.', $this->queries->trash(new TrashWorkspace(
             workspace: $this->workspace($request),
             sortBy: (string) ($validated['sort_by'] ?? 'deleted_at'),
             sortDir: (string) ($validated['sort_dir'] ?? 'desc'),
             page: (int) ($validated['page'] ?? 1),
             perPage: (int) ($validated['per_page'] ?? 50),
-        ));
+        )));
     }
 
     public function emptyTrash(Request $request): JsonResponse
     {
-        $this->manager->emptyTrash($this->workspace($request));
+        $this->emptyTrash->handle($this->workspace($request));
 
         return $this->success('Trash emptied.');
     }
@@ -109,44 +168,14 @@ class MediaLibraryController extends StorageController
         ]);
 
         $workspace = $this->workspace($request);
-        $parent = $this->manager->resolveFolderById(
-            $workspace,
-            isset($validated['parent_id']) ? (int) $validated['parent_id'] : null,
-        );
-        $folder = $this->manager->createFolder(
+        $folder = $this->createFolder->handle(
             $workspace,
             $validated['name'],
-            $parent,
+            isset($validated['parent_id']) ? (int) $validated['parent_id'] : null,
             $this->actor($request),
         );
 
         return $this->success('Folder created.', ['folder' => $folder->toArray()], 201);
-    }
-
-    public function moveToFolder(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'media_ids' => ['required', 'array', 'min:1'],
-            'media_ids.*' => ['integer'],
-            'folder_id' => ['nullable', 'integer'],
-        ]);
-
-        $workspace = $this->workspace($request);
-        $folderId = isset($validated['folder_id']) ? (int) $validated['folder_id'] : null;
-        $moved = 0;
-
-        foreach ($validated['media_ids'] as $mediaId) {
-            try {
-                $media = $this->media($workspace, (int) $mediaId, true);
-            } catch (ModelNotFoundException) {
-                continue;
-            }
-
-            $this->moveMedia->handle($workspace, $media, $folderId, $this->actor($request));
-            $moved++;
-        }
-
-        return $this->success("Moved {$moved} file(s).", ['moved' => $moved]);
     }
 
     public function archiveFolder(Request $request, string $folder): JsonResponse
@@ -176,14 +205,14 @@ class MediaLibraryController extends StorageController
         $workspace = $this->workspace($request);
         $uploaded = $this->uploadMedia->uploadLibraryFiles(
             $workspace,
-            $validated['files'],
+            array_map(static fn ($file) => LaravelIncomingFile::fromUploadedFile($file), $validated['files']),
             isset($validated['folder_id']) ? (int) $validated['folder_id'] : null,
             $this->actor($request),
         );
 
         return $this->success('Files uploaded.', [
-            'uploaded_count' => $uploaded->count(),
-            'media' => $uploaded->map(fn ($media) => $this->mediaPayload($media))->values()->all(),
+            'uploaded_count' => count($uploaded),
+            'media' => array_map(fn ($media) => $this->mediaPayload($media), $uploaded),
         ], 201);
     }
 
@@ -242,20 +271,12 @@ class MediaLibraryController extends StorageController
         $validated = $request->validate(['name' => ['required', 'string', 'max:191']]);
         $workspace = $this->workspace($request);
 
-        try {
-            $resolved = $this->renameMedia->handle(
-                $workspace,
-                $this->media($workspace, $media),
-                $validated['name'],
-                $this->actor($request),
-            );
-        } catch (RuntimeException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-                'data' => [],
-            ], 422);
-        }
+        $resolved = $this->renameMedia->handle(
+            $workspace,
+            $this->media($workspace, $media),
+            $validated['name'],
+            $this->actor($request),
+        );
 
         return $this->success('File renamed.', ['media' => $this->mediaPayload($resolved)]);
     }
@@ -272,7 +293,7 @@ class MediaLibraryController extends StorageController
         $workspace = $this->workspace($request);
         $resolved = $this->media($workspace, $media);
         $actor = $this->actor($request);
-        $share = $this->manager->createShare(
+        $share = $this->createMediaShare->handle(
             workspace: $workspace,
             media: $resolved,
             user: $actor,
@@ -302,13 +323,7 @@ class MediaLibraryController extends StorageController
         $workspace = $this->workspace($request);
         $resolvedMedia = $this->media($workspace, $media);
         $resolvedShare = $this->share($workspace, $share);
-        abort_unless(
-            $resolvedShare->shareable_type === $resolvedMedia->getMorphClass()
-            && (string) $resolvedShare->shareable_id === (string) $resolvedMedia->getKey(),
-            404,
-        );
-
-        $this->manager->revokeShare(
+        $this->revokeMediaShare->handle(
             $workspace,
             $resolvedMedia,
             $resolvedShare,

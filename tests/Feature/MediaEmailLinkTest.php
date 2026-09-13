@@ -2,11 +2,11 @@
 
 namespace Tetranyble\Storage\Tests\Feature;
 
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Domain\Media\MediaMailService;
-use Tetranyble\Storage\Enums\MediaStatus;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Http\Mail\LaravelMediaMailService;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaStatus;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 
@@ -29,7 +29,7 @@ class MediaEmailLinkTest extends PackageTestCase
             'status' => MediaStatus::READY,
         ]);
 
-        $mail = $this->app->make(MediaMailService::class);
+        $mail = $this->app->make(LaravelMediaMailService::class);
         $payload = $mail->publicLinkPayload($workspace, $media, ttlMinutes: 30, maxDownloads: 3);
 
         $this->assertSame('url', $payload->type);

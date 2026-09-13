@@ -29,6 +29,7 @@ return new class extends Migration
 
             $table->index(['workspace_id', 'provider']);
             $table->index(['workspace_id', 'status']);
+            $table->index(['workspace_id', 'status', 'token_expires_at'], 'connected_drives_workspace_status_expiry_idx');
             $table->index('default_slot');
             $table->unique(['workspace_id', 'default_slot'], 'connected_drives_one_default_per_workspace');
         });

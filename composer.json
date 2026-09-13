@@ -20,19 +20,21 @@
     "require": {
         "ext-fileinfo": "*",
         "ext-json": "*",
-        "illuminate/bus": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/console": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/contracts": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/database": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/events": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/filesystem": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/http": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/mail": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/pagination": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/queue": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/routing": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/support": "^9.0|^10.0|^11.0|^12.0|^13.0",
-        "illuminate/validation": "^9.0|^10.0|^11.0|^12.0|^13.0",
+        "illuminate/auth": "^12.0|^13.0",
+        "illuminate/bus": "^12.0|^13.0",
+        "illuminate/cache": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/events": "^12.0|^13.0",
+        "illuminate/filesystem": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/mail": "^12.0|^13.0",
+        "illuminate/pagination": "^12.0|^13.0",
+        "illuminate/queue": "^12.0|^13.0",
+        "illuminate/routing": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/validation": "^12.0|^13.0",
         "league/flysystem": "^3.28",
         "php": "^8.2"
     },
@@ -45,8 +47,8 @@
         "league/flysystem-aws-s3-v3": "^3.28",
         "league/flysystem-google-cloud-storage": "^3.28",
         "mockery/mockery": "^1.6",
-        "orchestra/testbench": "^7.0|^8.0|^9.0|^10.0|^11.0",
-        "phpunit/phpunit": "^9.6|^10.5|^11.5|^12.5|^13.0",
+        "orchestra/testbench": "^10.0|^11.0",
+        "phpunit/phpunit": "^11.5|^12.5|^13.0",
         "spatie/dropbox-api": "^1.0"
     },
     "autoload": {
@@ -66,17 +68,48 @@
         "analyse": "@php vendor/bin/phpstan analyse --memory-limit=1G",
         "format": "@php vendor/bin/pint",
         "format:check": "@php vendor/bin/pint --test",
-        "architecture": "@php scripts/check-architecture.php",
-        "validate": "@composer validate --strict",
-        "security": "@composer audit --locked",
+        "architecture": [
+            "@architecture:layers",
+            "@architecture:domain",
+            "@architecture:application",
+            "@architecture:adapters",
+            "@architecture:providers",
+            "@architecture:read-model",
+            "@architecture:resilience",
+            "@architecture:http",
+            "@architecture:reliability",
+            "@architecture:release",
+            "@architecture:lifecycle",
+            "@architecture:modules",
+            "@architecture:dependencies",
+            "@architecture:complexity"
+        ],
         "verify": [
-            "@validate",
             "@architecture",
             "@analyse",
-            "@test",
-            "@security"
+            "@format:check",
+            "@test"
         ],
-        "benchmark:queries": "@php scripts/run-query-benchmark.php"
+        "benchmark:queries": "@php scripts/run-query-benchmark.php",
+        "release:validate": "@php scripts/validate-release-version.php",
+        "release:verify-packagist": "@php scripts/verify-packagist-release.php",
+        "architecture:layers": "@php scripts/check-architecture.php",
+        "architecture:dependencies": "@php scripts/check-dependency-ratchet.php",
+        "architecture:complexity": "@php scripts/check-complexity-ratchet.php",
+        "production:gate": [
+            "@verify"
+        ],
+        "architecture:modules": "@php scripts/check-module-boundaries.php",
+        "architecture:domain": "@php scripts/check-domain-purity.php",
+        "architecture:lifecycle": "@php scripts/check-lifecycle-domain.php",
+        "architecture:application": "@php scripts/check-application-boundaries.php",
+        "architecture:adapters": "@php scripts/check-adapter-isolation.php",
+        "architecture:providers": "@php scripts/check-provider-registry.php",
+        "architecture:read-model": "@php scripts/check-read-model-cqrs.php",
+        "architecture:resilience": "@php scripts/check-async-resilience.php",
+        "architecture:http": "@php scripts/check-http-integration.php",
+        "architecture:reliability": "@php scripts/check-production-reliability.php",
+        "architecture:release": "@php scripts/check-release-readiness.php"
     },
     "extra": {
         "laravel": {
@@ -98,27 +131,15 @@
     "prefer-stable": true,
     "suggest": {
         "ext-gd": "Generate image thumbnails and extract image dimensions.",
-        "azure-oss/storage-blob-flysystem": "Required for Azure Blob Storage support.",
-        "cloudinary/cloudinary_php": "Required for Cloudinary media storage support.",
-        "google/apiclient": "Required for Google Drive connected-drive support.",
-        "league/flysystem-aws-s3-v3": "Required for Amazon S3 storage support.",
-        "league/flysystem-google-cloud-storage": "Required for Google Cloud Storage support.",
-        "spatie/dropbox-api": "Required for Dropbox connected-drive support."
+        "azure-oss/storage-blob-flysystem": "Required only for Azure Blob connected-drive support.",
+        "cloudinary/cloudinary_php": "Required only for Cloudinary connected-drive support.",
+        "google/apiclient": "Required only for Google Drive connected-drive support.",
+        "league/flysystem-aws-s3-v3": "Required only for Amazon S3 connected-drive support.",
+        "league/flysystem-google-cloud-storage": "Required only for Google Cloud Storage connected-drive support.",
+        "spatie/dropbox-api": "Required only for Dropbox connected-drive support."
     },
     "config": {
         "sort-packages": true,
-        "allow-plugins": {
-            "php-http/discovery": false
-        },
-        "policy": {
-            "advisories": {
-                "block": true,
-                "audit": "fail"
-            },
-            "abandoned": {
-                "block": false,
-                "audit": "fail"
-            }
-        }
+        "allow-plugins": {}
     }
 }

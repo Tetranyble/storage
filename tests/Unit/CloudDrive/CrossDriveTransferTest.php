@@ -2,18 +2,18 @@
 
 namespace Tetranyble\Storage\Tests\Unit\CloudDrive;
 
-use Tetranyble\Storage\Domain\CloudDrive\ConnectedDriveService;
-use Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter;
-use Tetranyble\Storage\Domain\CloudDrive\Contracts\SupportsSameDriveOperations;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\TransferResult;
-use Tetranyble\Storage\Domain\CloudDrive\OAuthService;
-use Tetranyble\Storage\Domain\FileSystem\Contracts\FileSystemContract;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
-use Tetranyble\Storage\Enums\CloudProvider;
-use Tetranyble\Storage\Enums\ConnectedDriveStatus;
-use Tetranyble\Storage\Models\ConnectedDrive;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\SupportsSameDriveOperations;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\TransferResult;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\OAuthService;
+use Tetranyble\Storage\Modules\Storage\Application\Contracts\FileSystemContract;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\ConnectedDriveStatus;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 use Mockery;
@@ -329,8 +329,8 @@ class CrossDriveTransferTest extends PackageTestCase
     private function makeService(
         MockInterface  $fromAdapter,
         MockInterface  $toAdapter,
-        ?ConnectedDrive $fromDrive = null,
-        ?ConnectedDrive $toDrive   = null,
+        ConnectedDrive $fromDrive = null,
+        ConnectedDrive $toDrive   = null,
     ): ConnectedDriveService {
         $svc = Mockery::mock(
             ConnectedDriveService::class,

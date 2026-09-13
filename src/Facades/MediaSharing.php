@@ -2,11 +2,12 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\Media\MediaShareService;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\MediaShare;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Sharing\Application\Contracts\MediaShares;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Application\MediaShareService;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -24,6 +25,6 @@ class MediaSharing extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return MediaShareService::class;
+        return MediaShares::class;
     }
 }

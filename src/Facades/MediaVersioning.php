@@ -2,10 +2,11 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\Media\MediaVersioningService;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Versioning\Application\Contracts\MediaVersioning as MediaVersioningPort;
+use Tetranyble\Storage\Modules\Versioning\Infrastructure\Application\MediaVersioningService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Facade;
 
@@ -24,6 +25,6 @@ class MediaVersioning extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return MediaVersioningService::class;
+        return MediaVersioningPort::class;
     }
 }

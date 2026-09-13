@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('folders', function (Blueprint $table) {
+        Schema::create('folders', function (Blueprint $table): void {
             $table->id();
             $table->uuid()->unique();
             $table->foreignId('workspace_id')->nullable();
@@ -24,6 +24,10 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->unique(['workspace_id', 'path']);
+            $table->index(['workspace_id', 'parent_id', 'deleted_at'], 'folders_workspace_parent_deleted_idx');
+            $table->index(['workspace_id', 'deleted_at', 'access_scope', 'id'], 'folders_workspace_visibility_idx');
+            $table->index(['workspace_id', 'deleted_at', 'name', 'id'], 'folders_workspace_name_cursor_idx');
+            $table->index(['workspace_id', 'deleted_at', 'id'], 'folders_workspace_deleted_cursor_idx');
         });
     }
 

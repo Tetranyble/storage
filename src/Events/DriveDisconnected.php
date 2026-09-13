@@ -3,7 +3,7 @@
 namespace Tetranyble\Storage\Events;
 
 use Illuminate\Database\Eloquent\Model;
-use Tetranyble\Storage\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
 
 final class DriveDisconnected
 {

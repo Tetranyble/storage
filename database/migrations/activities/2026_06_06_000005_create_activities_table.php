@@ -24,6 +24,14 @@ return new class extends Migration
             $table->uuid('subject_uuid');
             $table->timestamps();
             $table->softDeletes();
+            $table->index(
+                ['workspace_id', 'subject_type', 'subject_id', 'type', 'created_at'],
+                'activities_workspace_subject_visibility_idx',
+            );
+            $table->index(
+                ['workspace_id', 'type', 'created_at', 'id'],
+                'activities_workspace_type_cursor_idx',
+            );
         });
     }
 

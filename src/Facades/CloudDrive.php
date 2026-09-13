@@ -2,17 +2,18 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\CloudDrive\ConnectedDriveService;
-use Tetranyble\Storage\Domain\CloudDrive\Contracts\CloudAdapter;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\CloudFile;
-use Tetranyble\Storage\Domain\CloudDrive\DTO\TransferResult;
-use Tetranyble\Storage\Enums\CloudProvider;
-use Tetranyble\Storage\Models\ConnectedDrive;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\ConnectedDriveService;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Contracts\CloudAdapter;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\CloudFile;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\DTO\TransferResult;
+use Tetranyble\Storage\Modules\CloudDrive\Domain\Enums\CloudProvider;
+use Tetranyble\Storage\Modules\CloudDrive\Infrastructure\Persistence\Eloquent\Models\ConnectedDrive;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static ConnectedDrive   connectOAuth(Workspace $workspace, CloudProvider $provider, array $tokenData, string $name)
+ * @method static ConnectedDrive   connectCredentials(Workspace $workspace, CloudProvider $provider, array $credentials, string $name)
  * @method static ConnectedDrive   connectS3(Workspace $workspace, array $credentials, string $name)
  * @method static ConnectedDrive   connectAzureBlob(Workspace $workspace, array $credentials, string $name)
  * @method static ConnectedDrive   connectGcs(Workspace $workspace, array $credentials, string $name)

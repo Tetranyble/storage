@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\Media\DTO\MediaMailPayload;
-use Tetranyble\Storage\Domain\Media\MediaMailService;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Media\Application\DTO\MediaMailPayload;
+use Tetranyble\Storage\Http\Mail\LaravelMediaMailService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Illuminate\Mail\Attachment;
 use Illuminate\Support\Facades\Facade;
 
@@ -16,12 +16,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static MediaMailPayload signedLinkPayload(Media $media, int $ttlMinutes = 60)
  * @method static MediaMailPayload publicLinkPayload(Workspace $workspace, Media $media, string $accessLevel = 'download', ?int $ttlMinutes = null, ?int $maxDownloads = null, ?string $password = null, ?int $createdBy = null, bool $absolute = true)
  *
- * @see MediaMailService
+ * @see LaravelMediaMailService
  */
 class MediaMail extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return MediaMailService::class;
+        return LaravelMediaMailService::class;
     }
 }

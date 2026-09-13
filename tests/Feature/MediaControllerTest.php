@@ -7,13 +7,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Tetranyble\Storage\Enums\AccessScope;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\MediaShare;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\AccessScope;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class MediaControllerTest extends PackageTestCase
@@ -75,7 +75,7 @@ class MediaControllerTest extends PackageTestCase
                 'original_name' => 'records.csv',
                 'total_chunks' => 2,
                 'total_size' => 100,
-                'purpose' => MediaPurpose::IMPORT_SOURCE->value,
+                'purpose' => MediaPurpose::IMPORT->value,
             ])
             ->assertCreated()
             ->assertJsonPath('data.upload.total_chunks', 2);

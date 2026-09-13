@@ -2,13 +2,15 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Contracts\ResourceAccessControl;
-use Tetranyble\Storage\Domain\Media\CommentService;
-use Tetranyble\Storage\Models\Comment;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Access\Application\Contracts\ResourceAccessControl;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Application\CommentService;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Comment;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 use Mockery;
@@ -95,7 +97,7 @@ class CommentServiceTest extends PackageTestCase
         $other   = Workspace::create(['name' => 'Other', 'uuid' => Str::uuid()]);
         $folder2 = Folder::create(['workspace_id' => $other->id, 'name' => 'X', 'slug' => 'x', 'path' => '/x', 'uuid' => Str::uuid()]);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(ResourceNotFoundException::class);
 
         $this->service->addComment($this->workspace, $folder2, $this->user, 'Hello');
     }
@@ -130,7 +132,7 @@ class CommentServiceTest extends PackageTestCase
             'uuid'             => Str::uuid(),
         ]);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(AccessDeniedException::class);
 
         $this->service->editComment($this->workspace, $comment, $other, 'Hijacked');
     }

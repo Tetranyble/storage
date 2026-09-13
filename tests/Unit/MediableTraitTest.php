@@ -2,10 +2,10 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\MediaService;
-use Tetranyble\Storage\Enums\MediaPurpose;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Storage\MediaService;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\Fixtures\Models\Loan;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Http\UploadedFile;
@@ -25,7 +25,7 @@ class MediableTraitTest extends PackageTestCase
         $mock->shouldReceive('attachSourceFor')->once()->andReturn($media);
         $this->app->instance(MediaService::class, $mock);
 
-        $result = $loan->attachMedia($file, 'Payslip', '', 'media', MediaPurpose::BANK_STATEMENT);
+        $result = $loan->attachMedia($file, 'Payslip', '', 'media', MediaPurpose::DOCUMENT);
 
         $this->assertSame($media, $result);
     }
@@ -45,7 +45,7 @@ class MediableTraitTest extends PackageTestCase
         $mock->shouldReceive('attachExistingMediaToModel')->once()->andReturn($media);
         $this->app->instance(MediaService::class, $mock);
 
-        $result = $loan->attachExistingMediaById($media->id, MediaPurpose::BANK_STATEMENT);
+        $result = $loan->attachExistingMediaById($media->id, MediaPurpose::DOCUMENT);
 
         $this->assertNotNull($result);
         $this->assertSame($media->id, $result->id);

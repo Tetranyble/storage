@@ -2,13 +2,15 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\Media\AccessControlService;
-use Tetranyble\Storage\Enums\CollaboratorRole;
-use Tetranyble\Storage\Models\CollaboratorGrant;
-use Tetranyble\Storage\Models\Folder;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\Workspace;
-use Tetranyble\Storage\Models\User;
+use Tetranyble\Storage\Modules\Access\Domain\Exceptions\AccessDeniedException;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
+use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Access\AccessControlService;
+use Tetranyble\Storage\Modules\Access\Domain\Enums\CollaboratorRole;
+use Tetranyble\Storage\Modules\Access\Infrastructure\Persistence\Eloquent\Models\CollaboratorGrant;
+use Tetranyble\Storage\Modules\Folder\Infrastructure\Persistence\Eloquent\Models\Folder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User;
 use Tetranyble\Storage\Tests\PackageTestCase;
 use Illuminate\Support\Str;
 
@@ -110,7 +112,7 @@ class AccessControlTransferOwnershipTest extends PackageTestCase
     {
         $imposter = User::create(['name' => 'Eve', 'uuid' => Str::uuid(), 'workspace_id' => $this->workspace->id]);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(AccessDeniedException::class);
 
         $this->service->transferOwnership($this->workspace, $this->folder, $imposter, $this->newOwner);
     }
@@ -127,7 +129,7 @@ class AccessControlTransferOwnershipTest extends PackageTestCase
             'uuid'       => Str::uuid(),
         ]);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(ResourceNotFoundException::class);
 
         $this->service->transferOwnership($this->workspace, $folder, $this->owner, $this->newOwner);
     }

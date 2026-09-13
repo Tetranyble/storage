@@ -4,7 +4,7 @@ namespace Tetranyble\Storage\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
 use Tetranyble\Storage\Support\StorageConfig;
 
 class ReconcileStorageUsageCommand extends Command

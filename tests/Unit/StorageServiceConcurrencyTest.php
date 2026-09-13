@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Tests\Unit;
 
-use Tetranyble\Storage\Domain\FileSystem\Exceptions\StorageQuotaExceededException;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Quota\Domain\Exceptions\StorageQuotaExceededException;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Tetranyble\Storage\Tests\PackageTestCase;
 
 class StorageServiceConcurrencyTest extends PackageTestCase

@@ -6,21 +6,24 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Tetranyble\Storage\Application\Media\SetCurrentMedia;
-use Tetranyble\Storage\Application\Media\TrashMedia;
-use Tetranyble\Storage\Application\Media\UpdateMedia;
-use Tetranyble\Storage\Application\Media\UploadMedia;
-use Tetranyble\Storage\Application\Queries\GetMedia;
-use Tetranyble\Storage\Application\Uploads\ImportRemoteMedia;
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
-use Tetranyble\Storage\Domain\FileSystem\Enums\Disk;
-use Tetranyble\Storage\Enums\MediaPurpose;
+use Tetranyble\Storage\Modules\Media\Application\SetCurrentMedia;
+use Tetranyble\Storage\Modules\Media\Application\TrashMedia;
+use Tetranyble\Storage\Modules\Media\Application\UpdateMedia;
+use Tetranyble\Storage\Modules\Media\Application\UploadMedia;
+use Tetranyble\Storage\Modules\Media\Application\Queries\GetMedia;
+use Tetranyble\Storage\Modules\Remote\Application\ImportRemoteMedia;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Http\Adapters\LaravelIncomingFile;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Domain\Enums\Disk;
+use Tetranyble\Storage\Modules\Media\Domain\Enums\MediaPurpose;
 
 class MediaController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         protected readonly UploadMedia $uploadMedia,
         protected readonly ImportRemoteMedia $remoteImports,
         protected readonly GetMedia $getMedia,
@@ -28,7 +31,7 @@ class MediaController extends StorageController
         protected readonly TrashMedia $trashMedia,
         protected readonly SetCurrentMedia $setCurrentMedia,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     public function store(Request $request): JsonResponse
@@ -52,7 +55,7 @@ class MediaController extends StorageController
         $actor = $this->actor($request);
         $media = $this->uploadMedia->handle(
             $workspace,
-            $validated['file'],
+            LaravelIncomingFile::fromUploadedFile($validated['file']),
             MediaUploadOptions::forStandalone(
                 workspaceId: (int) $workspace->getKey(),
                 userId: $actor ? (int) $actor->getKey() : null,

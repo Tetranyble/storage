@@ -3,41 +3,51 @@
 namespace Tetranyble\Storage\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Tetranyble\Storage\Contracts\Workspace;
-use Tetranyble\Storage\Domain\Media\MediaLibraryService;
-use Tetranyble\Storage\Domain\Media\MediaShareService;
-use Tetranyble\Storage\Models\Media;
-use Tetranyble\Storage\Models\MediaShare;
+use Tetranyble\Storage\Http\Contracts\WorkspaceContext;
+use Tetranyble\Storage\Http\Routing\WorkspaceRouteResolver;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Application\MediaShareService;
+use Tetranyble\Storage\Modules\Processing\Application\MediaDeliveryGuard;
+use Tetranyble\Storage\Http\Responses\MediaStreamResponder;
+use Tetranyble\Storage\Modules\Media\Infrastructure\Persistence\Eloquent\Models\Media;
+use Tetranyble\Storage\Modules\Sharing\Infrastructure\Persistence\Eloquent\Models\MediaShare;
+use Tetranyble\Storage\Modules\Shared\Domain\Exceptions\ResourceNotFoundException;
 
 class MediaShareController extends StorageController
 {
     public function __construct(
-        Workspace $workspace,
+        WorkspaceContext $workspace,
+        WorkspaceRouteResolver $routes,
         protected readonly MediaShareService $shares,
-        protected readonly MediaLibraryService $library,
+        protected readonly MediaStreamResponder $responder,
+        protected readonly MediaDeliveryGuard $delivery,
     ) {
-        parent::__construct($workspace);
+        parent::__construct($workspace, $routes);
     }
 
     public function download(Request $request, string $token)
     {
         $share = $this->shares->resolveByToken($token);
-        abort_unless($share instanceof MediaShare, 404);
+        if (! $share instanceof MediaShare) {
+            throw new ResourceNotFoundException();
+        }
 
         $currentWorkspace = $this->workspace->currentWorkspace($request);
         if ($currentWorkspace && (string) $share->workspace_id !== (string) $currentWorkspace->getKey()) {
-            abort(404);
+            throw new ResourceNotFoundException();
         }
 
         $media = $share->shareable;
-        abort_unless(
-            $media instanceof Media
-            && (string) $media->workspace_id === (string) $share->workspace_id,
-            404,
-        );
+        if (! $media instanceof Media
+            || (string) $media->workspace_id !== (string) $share->workspace_id) {
+            throw new ResourceNotFoundException();
+        }
 
-        $this->shares->consumeDownloadAccess($share, $request->input('password'));
+        // Do not consume a limited download slot for media that is quarantined.
+        $this->delivery->assertDeliverable($media);
+        // Never consume share passwords from a GET query string; URLs leak through browser/history/proxy logs.
+        $password = $request->isMethod('post') ? $request->input('password') : null;
+        $this->shares->consumeDownloadAccess($share, is_string($password) ? $password : null);
 
-        return $this->library->streamDownload($media);
+        return $this->responder->stream($media);
     }
 }

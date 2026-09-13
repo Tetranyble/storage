@@ -2,9 +2,9 @@
 
 namespace Tetranyble\Storage\Facades;
 
-use Tetranyble\Storage\Domain\FileSystem\DTO\StorageUsage;
-use Tetranyble\Storage\Domain\FileSystem\StorageService;
-use Tetranyble\Storage\Models\Workspace;
+use Tetranyble\Storage\Modules\Storage\Domain\DTO\StorageUsage;
+use Tetranyble\Storage\Modules\Storage\Infrastructure\StorageService;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace;
 use Illuminate\Support\Facades\Facade;
 
 /**

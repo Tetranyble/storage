@@ -6,12 +6,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Tetranyble\Storage\Concerns\BelongsToStorageWorkspace;
-use Tetranyble\Storage\Contracts\StorageUser;
+use Tetranyble\Storage\Modules\Workspace\Application\Contracts\StorageUser;
 use Tetranyble\Storage\Contracts\WorkspaceSubject;
-use Tetranyble\Storage\Domain\FileSystem\DTO\MediaUploadOptions;
+use Tetranyble\Storage\Modules\Storage\Application\DTO\MediaUploadOptions;
 use Tetranyble\Storage\Support\StorageConfig;
 use Tetranyble\Storage\Tests\PackageTestCase;
-use Tetranyble\Storage\Workspace\AuthenticatedWorkspace;
+use Tetranyble\Storage\Modules\Workspace\Infrastructure\AuthenticatedWorkspace;
 
 class StorageConfigTest extends PackageTestCase
 {
@@ -42,7 +42,7 @@ class StorageConfigTest extends PackageTestCase
         $this->assertInstanceOf(HostWorkspaceModel::class, $resolver->currentWorkspace($request));
         $this->assertSame($workspace->id, StorageConfig::actorWorkspaceId($actor));
         $this->assertSame($actor->getKey(), StorageConfig::actorIdentifier($actor));
-        $this->assertSame($workspace->id, MediaUploadOptions::forModel($actor)->workspaceId);
+        $this->assertSame($workspace->id, MediaUploadOptions::forModel($actor, workspaceId: StorageConfig::actorWorkspaceId($actor))->workspaceId);
     }
 
     public function test_table_overrides_are_read_from_configuration(): void
@@ -56,13 +56,24 @@ class StorageConfigTest extends PackageTestCase
 
     public function test_user_model_class_falls_back_to_laravel_auth_provider_model(): void
     {
-        config()->set('tetranyble-storage.models.user', \Tetranyble\Storage\Models\User::class);
+        config()->set('tetranyble-storage.models.user', \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\User::class);
         config()->set('tetranyble-storage.workspace.guard', 'web');
         config()->set('auth.defaults.guard', 'web');
         config()->set('auth.guards.web.provider', 'users');
         config()->set('auth.providers.users.model', HostAuthUser::class);
 
         $this->assertSame(HostAuthUser::class, StorageConfig::userModelClass());
+    }
+
+
+    public function test_string_key_host_models_are_rejected_before_storage_operations(): void
+    {
+        config()->set('tetranyble-storage.models.workspace', HostStringKeyWorkspace::class);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('requires integer primary keys');
+
+        StorageConfig::assertHostModelKeyCompatibility();
     }
 
     public function test_workspace_subject_interface_resolves_workspace_without_relation_config(): void
@@ -86,11 +97,11 @@ class StorageConfigTest extends PackageTestCase
 
         $this->assertSame($workspace->id, $resolver->currentWorkspace($request)?->getKey());
         $this->assertSame($workspace->id, StorageConfig::actorWorkspaceId($actor));
-        $this->assertSame($workspace->id, MediaUploadOptions::forModel($actor)->workspaceId);
+        $this->assertSame($workspace->id, MediaUploadOptions::forModel($actor, workspaceId: StorageConfig::actorWorkspaceId($actor))->workspaceId);
     }
 }
 
-class HostWorkspaceModel extends \Tetranyble\Storage\Models\Workspace
+class HostWorkspaceModel extends \Tetranyble\Storage\Modules\Workspace\Infrastructure\Persistence\Eloquent\Models\Workspace
 {
     protected $table = 'workspaces';
 }
@@ -128,4 +139,12 @@ class HostAuthUser extends Authenticatable
     protected $table = 'users';
 
     protected $guarded = [];
+}
+
+
+class HostStringKeyWorkspace extends HostWorkspaceModel
+{
+    protected $keyType = 'string';
+
+    public $incrementing = false;
 }

@@ -29,7 +29,11 @@ _ide_helper_models.php
 phpunit.xml
 phpstan.neon
 testbench.yaml
-/docs/*
-!/docs/CONNECTED_DRIVES.md
 /coverage
 /coverage.xml
+# Quality tooling
+.phpstan-cache/
+.pint.cache
+
+# Local release artifacts
+/dist/
