@@ -40,7 +40,7 @@
     },
     "require-dev": {
         "azure-oss/storage-blob-flysystem": "^2.2",
-        "cloudinary/cloudinary_php": "^2.0",
+        "cloudinary/cloudinary_php": "^2.0 || ^3.0",
         "google/apiclient": "^2.15",
         "larastan/larastan": "^3.10",
         "laravel/pint": "^1.20",
